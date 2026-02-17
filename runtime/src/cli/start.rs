@@ -1,5 +1,6 @@
 //! Start the Cortex daemon process.
 
+use crate::cli::output::{self, Styled};
 use crate::server::Server;
 use anyhow::{Context, Result};
 use std::path::PathBuf;
@@ -15,8 +16,57 @@ pub fn pid_file_path() -> PathBuf {
         .join(".cortex/cortex.pid")
 }
 
+/// Check if Cortex is already running. Returns the PID if so.
+pub fn check_already_running() -> Option<i32> {
+    let pid_path = pid_file_path();
+    if !pid_path.exists() {
+        return None;
+    }
+    let pid_str = std::fs::read_to_string(&pid_path).ok()?;
+    let pid: i32 = pid_str.trim().parse().ok()?;
+
+    // Check if the process is actually alive
+    #[cfg(unix)]
+    {
+        let output = std::process::Command::new("kill")
+            .args(["-0", &pid.to_string()])
+            .output();
+        if matches!(output, Ok(o) if o.status.success()) {
+            return Some(pid);
+        }
+    }
+
+    // Stale PID file — clean up
+    let _ = std::fs::remove_file(&pid_path);
+    None
+}
+
 /// Start the Cortex daemon: bind socket, write PID, serve requests.
 pub async fn run() -> Result<()> {
+    let s = Styled::new();
+
+    // Check if already running
+    if let Some(pid) = check_already_running() {
+        eprintln!(
+            "  {} Cortex is already running (PID {pid}).",
+            s.warn_sym()
+        );
+        eprintln!("  Use 'cortex restart' or 'cortex stop' first.");
+        std::process::exit(1);
+    }
+
+    // Clean up stale socket file
+    let socket_path = PathBuf::from(SOCKET_PATH);
+    if socket_path.exists() {
+        std::fs::remove_file(&socket_path).ok();
+    }
+
+    // Ensure ~/.cortex/ exists
+    let pid_path = pid_file_path();
+    if let Some(parent) = pid_path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+
     // Initialize tracing
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -27,20 +77,19 @@ pub async fn run() -> Result<()> {
 
     info!("starting Cortex v{}", env!("CARGO_PKG_VERSION"));
 
-    let socket_path = PathBuf::from(SOCKET_PATH);
-
-    // Remove stale socket
-    if socket_path.exists() {
-        std::fs::remove_file(&socket_path).ok();
-    }
-
     // Write PID file
-    let pid_path = pid_file_path();
-    if let Some(parent) = pid_path.parent() {
-        std::fs::create_dir_all(parent).ok();
-    }
     std::fs::write(&pid_path, std::process::id().to_string())
         .context("failed to write PID file")?;
+
+    if !output::is_quiet() {
+        eprintln!(
+            "  {} Cortex v{} started (PID {})",
+            s.ok_sym(),
+            env!("CARGO_PKG_VERSION"),
+            std::process::id()
+        );
+        eprintln!("  Listening on {SOCKET_PATH}");
+    }
 
     // Set up SIGTERM/SIGINT handling
     let server = Server::new(&socket_path);
@@ -56,8 +105,13 @@ pub async fn run() -> Result<()> {
     // Run server
     let result = server.start().await;
 
-    // Clean up PID file
+    // Clean up on exit
     let _ = std::fs::remove_file(&pid_path);
+    let _ = std::fs::remove_file(&socket_path);
+
+    if !output::is_quiet() {
+        eprintln!("  {} Cortex stopped.", s.ok_sym());
+    }
 
     result
 }
