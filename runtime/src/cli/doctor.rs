@@ -141,6 +141,22 @@ pub async fn run() -> Result<()> {
     #[cfg(target_os = "linux")]
     check_shared_libs(&s, &mut ready);
 
+    // 7b. musl libc detection (Alpine Linux)
+    #[cfg(target_os = "linux")]
+    {
+        if is_musl_libc() {
+            output::print_check(
+                s.warn_sym(),
+                "C library:",
+                "musl libc detected (Alpine Linux)",
+            );
+            output::print_detail(
+                "Chromium does not run natively on musl. Install gcompat:",
+            );
+            output::print_detail("  apk add gcompat");
+        }
+    }
+
     eprintln!();
 
     // ── Runtime ─────────────────────────────────────────────────────────
@@ -608,6 +624,30 @@ fn is_process_alive(pid: i32) -> bool {
         let _ = pid;
         false
     }
+}
+
+/// Check if the system uses musl libc (Alpine Linux).
+#[cfg(target_os = "linux")]
+fn is_musl_libc() -> bool {
+    // Check ldd --version output for "musl"
+    if let Ok(output) = Command::new("ldd").arg("--version").output() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if stderr.contains("musl") || stdout.contains("musl") {
+            return true;
+        }
+    }
+    // Check if /lib/ld-musl-*.so.1 exists
+    if let Ok(entries) = std::fs::read_dir("/lib") {
+        for entry in entries.flatten() {
+            if let Some(name) = entry.file_name().to_str() {
+                if name.starts_with("ld-musl") {
+                    return true;
+                }
+            }
+        }
+    }
+    false
 }
 
 /// Check if running inside Docker.

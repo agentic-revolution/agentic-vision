@@ -43,9 +43,20 @@ pub async fn run(domain: &str, max_nodes: u32, max_render: u32, timeout: u64, fr
         }
     }
 
+    // First-run auto-setup: install Chromium and start daemon if needed
+    if !output::is_quiet() {
+        eprintln!("  Mapping {domain}...");
+        eprintln!();
+    }
+
+    let needs_setup = auto_setup_if_needed().await?;
+    if needs_setup && !output::is_quiet() {
+        eprintln!();
+    }
+
     if output::is_json() {
         output::print_json(&serde_json::json!({
-            "error": "daemon_required",
+            "status": "daemon_required",
             "message": "Map command requires a running Cortex daemon with browser pool",
             "hint": "Start with: cortex start"
         }));
@@ -54,8 +65,6 @@ pub async fn run(domain: &str, max_nodes: u32, max_render: u32, timeout: u64, fr
 
     // TODO: When browser pool is wired up, perform actual mapping here.
     if !output::is_quiet() {
-        eprintln!("  Mapping {domain}...");
-        eprintln!();
         eprintln!(
             "  Map command requires a running Cortex daemon with browser pool."
         );
@@ -146,4 +155,75 @@ fn print_map_json(map: &SiteMap, elapsed: std::time::Duration) {
         "page_types": type_counts,
         "duration_ms": elapsed.as_millis(),
     }));
+}
+
+/// Auto-install Chromium and auto-start daemon if needed.
+///
+/// Returns `true` if any setup action was taken, `false` if already ready.
+///
+/// This implements the "first-run experience" from Section 6 of the edge cases doc:
+/// `cortex map` should auto-install and auto-start so users never need to run
+/// `cortex install` and `cortex start` separately on first use.
+async fn auto_setup_if_needed() -> Result<bool> {
+    let mut did_something = false;
+
+    // Check if Chromium is installed
+    let chromium_path = crate::cli::doctor::find_chromium();
+    if chromium_path.is_none() {
+        if !output::is_quiet() {
+            let s = Styled::new();
+            eprintln!(
+                "  {} Cortex is not set up yet. Let's get you started:",
+                s.info_sym()
+            );
+            eprintln!();
+            eprintln!("  [1/2] Installing Chromium...");
+        }
+        // Try to install
+        match crate::cli::install_cmd::run_with_force(false).await {
+            Ok(()) => {
+                did_something = true;
+            }
+            Err(e) => {
+                // Installation failed — give clear instructions
+                if !output::is_quiet() {
+                    eprintln!("    Failed to auto-install Chromium: {e}");
+                    eprintln!("    Run 'cortex install' manually for detailed output.");
+                }
+                return Err(e);
+            }
+        }
+    }
+
+    // Check if daemon is running
+    let socket_path = std::path::PathBuf::from("/tmp/cortex.sock");
+    if !socket_path.exists() {
+        if !output::is_quiet() {
+            if did_something {
+                eprintln!("  [2/2] Starting Cortex process...");
+            } else {
+                let s = Styled::new();
+                eprintln!(
+                    "  {} Cortex is not running. Starting...",
+                    s.info_sym()
+                );
+            }
+        }
+        match crate::cli::start::run().await {
+            Ok(()) => {
+                did_something = true;
+                // Brief pause for the daemon to initialize
+                tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+            }
+            Err(e) => {
+                if !output::is_quiet() {
+                    eprintln!("    Failed to auto-start: {e}");
+                    eprintln!("    Run 'cortex start' manually for details.");
+                }
+                return Err(e);
+            }
+        }
+    }
+
+    Ok(did_something)
 }
