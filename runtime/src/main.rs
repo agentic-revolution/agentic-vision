@@ -6,6 +6,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
+mod audit;
 mod cartography;
 mod cli;
 mod extraction;
@@ -18,6 +19,7 @@ mod protocol;
 mod renderer;
 mod server;
 mod stealth;
+mod trust;
 
 #[derive(Parser)]
 #[command(
