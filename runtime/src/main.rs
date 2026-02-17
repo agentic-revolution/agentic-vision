@@ -10,6 +10,7 @@ mod cartography;
 mod cli;
 mod extraction;
 mod map;
+mod navigation;
 mod protocol;
 mod renderer;
 mod server;

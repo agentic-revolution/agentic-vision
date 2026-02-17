@@ -147,17 +147,28 @@ fn handle_request(req: &protocol::Request, uptime_s: u64) -> String {
                 serde_json::to_value(result).unwrap_or_default(),
             )
         }
-        Method::Map
-        | Method::Query
-        | Method::Pathfind
-        | Method::Refresh
-        | Method::Act
-        | Method::Watch
-        | Method::Perceive => protocol::format_error(
+        Method::Map => protocol::format_error(
             &req.id,
-            "E_INVALID_METHOD",
-            &format!("{:?} not yet implemented", req.method),
+            "E_NO_MAP_CACHE",
+            "Map caching not yet available; use CLI `cortex map <domain>` instead",
         ),
+        Method::Query => protocol::format_error(
+            &req.id,
+            "E_NO_MAP_CACHE",
+            "No maps cached in server; map a domain first",
+        ),
+        Method::Pathfind => protocol::format_error(
+            &req.id,
+            "E_NO_MAP_CACHE",
+            "No maps cached in server; map a domain first",
+        ),
+        Method::Refresh | Method::Act | Method::Watch | Method::Perceive => {
+            protocol::format_error(
+                &req.id,
+                "E_NOT_IMPLEMENTED",
+                &format!("{:?} not yet implemented", req.method),
+            )
+        }
     }
 }
 
