@@ -5,25 +5,22 @@
 ```bash
 # Install Cortex
 cargo install cortex-runtime
-
-# Install Chromium for Testing
-cortex install
-
-# Verify everything works
-cortex doctor
 ```
 
-## Start the Daemon
-
-```bash
-cortex start
-```
+That's it. No other setup needed.
 
 ## Map Your First Site
 
 ```bash
-cortex map example.com --max-render 10
+cortex map example.com
 ```
+
+On first run, Cortex will automatically:
+1. Download Chromium for Testing (~130 MB)
+2. Start the background daemon
+3. Map the site
+
+Subsequent runs skip steps 1-2 and map immediately.
 
 Output:
 ```
@@ -70,8 +67,37 @@ const results = await site.filter({ pageType: 4, limit: 10 });
 results.forEach(r => console.log(r.url));
 ```
 
-## Stop the Daemon
+## Other Useful Commands
 
 ```bash
+# Check environment
+cortex doctor
+
+# Search by page type and features
+cortex query example.com --type product_detail --price-lt 100
+
+# Find shortest path between nodes
+cortex pathfind example.com --from 0 --to 42
+
+# Machine-readable output
+cortex map example.com --json
+
+# Clear cached maps
+cortex cache clear
+
+# Stop the daemon
 cortex stop
+```
+
+## Shell Completions
+
+```bash
+# Bash
+cortex completions bash >> ~/.bashrc
+
+# Zsh
+cortex completions zsh >> ~/.zshrc
+
+# Fish
+cortex completions fish > ~/.config/fish/completions/cortex.fish
 ```

@@ -10,11 +10,8 @@
 ```bash
 # Install
 cargo install cortex-runtime
-cortex install    # Download Chromium for Testing
-cortex doctor     # Verify setup
 
-# Map a site
-cortex start
+# Map a site (auto-installs Chromium and starts daemon on first run)
 cortex map example.com
 
 # Query from Python
@@ -26,6 +23,8 @@ for p in site.filter(page_type=4, limit=5):
     print(f'  {p.url}')
 "
 ```
+
+No manual setup needed. `cortex map` handles Chromium installation and daemon lifecycle automatically on first run. For diagnostics, run `cortex doctor`.
 
 ## How It Works
 
@@ -94,6 +93,27 @@ cortex/
 ├── integrations/     # LangChain, CrewAI, OpenClaw
 └── docs/             # Guides and cookbooks
 ```
+
+## CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `cortex map <domain>` | Map a website into a binary graph |
+| `cortex query <domain>` | Search a mapped site by type/features |
+| `cortex pathfind <domain>` | Find shortest path between nodes |
+| `cortex perceive <url>` | Analyze a single live page |
+| `cortex doctor` | Check environment and diagnose issues |
+| `cortex start` / `stop` / `restart` | Manage the background daemon |
+| `cortex status` | Show runtime status and cached maps |
+| `cortex install` | Download Chromium for Testing |
+| `cortex cache clear` | Clear cached maps |
+| `cortex completions <shell>` | Generate shell completions (bash/zsh/fish) |
+
+Global flags: `--json`, `--quiet`, `--verbose`, `--no-color`
+
+## Known Limitations
+
+See [docs/LIMITATIONS.md](docs/LIMITATIONS.md) for an honest list of current limitations including SPA support, CAPTCHA handling, and feature vector accuracy.
 
 ## Contributing
 
