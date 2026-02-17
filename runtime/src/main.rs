@@ -1,10 +1,13 @@
 // Copyright 2026 Cortex Contributors
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(dead_code, unused_imports)]
+
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 mod cli;
+mod map;
 
 #[derive(Parser)]
 #[command(
