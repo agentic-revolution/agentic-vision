@@ -1,0 +1,17 @@
+target/
+node_modules/
+dist/
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
+.idea/
+.vscode/
+*.swp
+.cortex/
+/tmp/cortex.sock
+.DS_Store
+Thumbs.db
+*.so
+*.dylib
+*.dll

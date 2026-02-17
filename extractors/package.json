@@ -1,0 +1,17 @@
+{
+  "name": "@cortex-ai/extractors",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "bash build.sh",
+    "lint": "echo 'lint placeholder'",
+    "test": "echo 'test placeholder'"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "esbuild": "^0.24.0",
+    "vitest": "^2.1.0",
+    "jsdom": "^25.0.0"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "domain": "simple-blog.test",
+  "expected_nodes": {"min": 6, "max": 10},
+  "expected_edges": {"min": 10, "max": 30},
+  "required_node_types": {
+    "home": 1,
+    "article": {"min": 2, "max": 4},
+    "about_page": 1,
+    "contact_page": 1
+  },
+  "required_paths": [
+    {"from_type": "home", "to_type": "article", "max_hops": 2},
+    {"from_type": "home", "to_type": "about_page", "max_hops": 1}
+  ]
+}
