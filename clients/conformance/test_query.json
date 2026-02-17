@@ -1,0 +1,51 @@
+{
+  "suite": "query",
+  "description": "Test querying a mapped site by page type.",
+  "requires_map": "localhost:{{PORT}}",
+  "cases": [
+    {
+      "id": "query_all",
+      "description": "Query all nodes with no filter",
+      "action": {
+        "method": "query",
+        "args": {
+          "domain": "localhost:{{PORT}}",
+          "limit": 50
+        }
+      },
+      "assertions": [
+        { "field": "length", "op": "gte", "value": 1 }
+      ]
+    },
+    {
+      "id": "query_by_page_type",
+      "description": "Query nodes by page type 1 (home)",
+      "action": {
+        "method": "query",
+        "args": {
+          "domain": "localhost:{{PORT}}",
+          "page_type": 1,
+          "limit": 10
+        }
+      },
+      "assertions": [
+        { "field": "length", "op": "gte", "value": 0 },
+        { "field": "[*].page_type", "op": "all_eq", "value": 1 }
+      ]
+    },
+    {
+      "id": "query_with_limit",
+      "description": "Query with limit=2 returns at most 2 results",
+      "action": {
+        "method": "query",
+        "args": {
+          "domain": "localhost:{{PORT}}",
+          "limit": 2
+        }
+      },
+      "assertions": [
+        { "field": "length", "op": "lte", "value": 2 }
+      ]
+    }
+  ]
+}

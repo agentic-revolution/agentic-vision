@@ -1,0 +1,57 @@
+{
+  "suite": "pathfind",
+  "description": "Test pathfinding between known nodes.",
+  "requires_map": "localhost:{{PORT}}",
+  "cases": [
+    {
+      "id": "pathfind_exists",
+      "description": "Pathfind from node 0 to node 1",
+      "action": {
+        "method": "pathfind",
+        "args": {
+          "domain": "localhost:{{PORT}}",
+          "from_node": 0,
+          "to_node": 1,
+          "minimize": "hops"
+        }
+      },
+      "assertions": [
+        { "field": "result_type", "op": "in", "value": ["path", "null"] },
+        { "field": "hops", "op": "gte", "value": 0, "if_not_null": true },
+        { "field": "nodes[0]", "op": "eq", "value": 0, "if_not_null": true }
+      ]
+    },
+    {
+      "id": "pathfind_same_node",
+      "description": "Pathfind from node 0 to node 0 returns trivial path",
+      "action": {
+        "method": "pathfind",
+        "args": {
+          "domain": "localhost:{{PORT}}",
+          "from_node": 0,
+          "to_node": 0,
+          "minimize": "hops"
+        }
+      },
+      "assertions": [
+        { "field": "hops", "op": "eq", "value": 0, "if_not_null": true }
+      ]
+    },
+    {
+      "id": "pathfind_no_path",
+      "description": "Pathfind to non-existent node returns null",
+      "action": {
+        "method": "pathfind",
+        "args": {
+          "domain": "localhost:{{PORT}}",
+          "from_node": 0,
+          "to_node": 99999,
+          "minimize": "hops"
+        }
+      },
+      "assertions": [
+        { "field": "result_type", "op": "eq", "value": "null" }
+      ]
+    }
+  ]
+}

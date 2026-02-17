@@ -1,0 +1,39 @@
+{
+  "suite": "map",
+  "description": "Test mapping a fixture site and verifying node count.",
+  "cases": [
+    {
+      "id": "map_basic",
+      "description": "Map the fixture site and verify basic stats",
+      "action": {
+        "method": "map",
+        "args": {
+          "domain": "localhost:{{PORT}}",
+          "max_nodes": 100,
+          "max_render": 10,
+          "max_time_ms": 30000
+        }
+      },
+      "assertions": [
+        { "field": "node_count", "op": "gte", "value": 1 },
+        { "field": "node_count", "op": "lte", "value": 100 },
+        { "field": "domain", "op": "eq", "value": "localhost:{{PORT}}" }
+      ]
+    },
+    {
+      "id": "map_respects_max_render",
+      "description": "Map with max_render=2 limits rendered pages",
+      "action": {
+        "method": "map",
+        "args": {
+          "domain": "localhost:{{PORT}}",
+          "max_render": 2,
+          "max_time_ms": 30000
+        }
+      },
+      "assertions": [
+        { "field": "node_count", "op": "gte", "value": 1 }
+      ]
+    }
+  ]
+}
