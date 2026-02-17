@@ -9,11 +9,14 @@ use clap::{Parser, Subcommand};
 mod cartography;
 mod cli;
 mod extraction;
+mod live;
 mod map;
 mod navigation;
+mod pool;
 mod protocol;
 mod renderer;
 mod server;
+mod stealth;
 
 #[derive(Parser)]
 #[command(
