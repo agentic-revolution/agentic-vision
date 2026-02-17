@@ -33,7 +33,9 @@ impl Method {
             "watch" => Ok(Self::Watch),
             "perceive" => Ok(Self::Perceive),
             "status" => Ok(Self::Status),
-            _ => bail!("unknown method: {s}"),
+            _ => bail!(
+                "unknown method '{s}'. Valid methods: handshake, map, query, pathfind, refresh, act, watch, perceive, status"
+            ),
         }
     }
 }

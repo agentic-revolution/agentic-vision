@@ -1,20 +1,32 @@
 //! Unix domain socket server for the Cortex protocol.
+//!
+//! Handles connection lifecycle, inactivity timeouts, malformed JSON,
+//! and concurrent request management.
 
 use crate::protocol::{self, Method};
 use anyhow::{Context, Result};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::UnixListener;
-use tokio::sync::Notify;
+use tokio::sync::{Mutex, Notify};
 use tracing::{error, info, warn};
+
+/// Inactivity timeout per connection (30 seconds).
+const INACTIVITY_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// Maximum request line size (10 MB).
+const MAX_REQUEST_SIZE: usize = 10 * 1024 * 1024;
 
 /// The Cortex socket server.
 pub struct Server {
     socket_path: PathBuf,
     started_at: Instant,
     shutdown: Arc<Notify>,
+    /// Track request IDs to reject duplicates.
+    seen_ids: Arc<Mutex<HashSet<String>>>,
 }
 
 impl Server {
@@ -24,6 +36,7 @@ impl Server {
             socket_path: socket_path.to_path_buf(),
             started_at: Instant::now(),
             shutdown: Arc::new(Notify::new()),
+            seen_ids: Arc::new(Mutex::new(HashSet::new())),
         }
     }
 
@@ -47,6 +60,7 @@ impl Server {
 
         let shutdown = Arc::clone(&self.shutdown);
         let started_at = self.started_at;
+        let seen_ids = Arc::clone(&self.seen_ids);
 
         loop {
             tokio::select! {
@@ -54,8 +68,9 @@ impl Server {
                     match accept_result {
                         Ok((stream, _addr)) => {
                             let uptime = started_at.elapsed().as_secs();
+                            let ids = Arc::clone(&seen_ids);
                             tokio::spawn(async move {
-                                if let Err(e) = handle_connection(stream, uptime).await {
+                                if let Err(e) = handle_connection(stream, uptime, ids).await {
                                     warn!("connection error: {e}");
                                 }
                             });
@@ -79,38 +94,112 @@ impl Server {
     }
 }
 
-/// Handle a single client connection.
-async fn handle_connection(stream: tokio::net::UnixStream, uptime_s: u64) -> Result<()> {
+/// Handle a single client connection with inactivity timeout.
+async fn handle_connection(
+    stream: tokio::net::UnixStream,
+    uptime_s: u64,
+    seen_ids: Arc<Mutex<HashSet<String>>>,
+) -> Result<()> {
     let (reader, mut writer) = stream.into_split();
     let mut reader = BufReader::new(reader);
     let mut line = String::new();
 
     loop {
         line.clear();
-        let bytes_read = reader
-            .read_line(&mut line)
-            .await
-            .context("failed to read from socket")?;
 
-        if bytes_read == 0 {
-            break; // connection closed
+        // Read with inactivity timeout
+        let read_result = tokio::time::timeout(
+            INACTIVITY_TIMEOUT,
+            reader.read_line(&mut line),
+        )
+        .await;
+
+        match read_result {
+            Ok(Ok(0)) => break, // connection closed
+            Ok(Ok(_)) => {
+                // Check line size
+                if line.len() > MAX_REQUEST_SIZE {
+                    let resp = protocol::format_error(
+                        "unknown",
+                        "E_MESSAGE_TOO_LARGE",
+                        &format!(
+                            "Request exceeds maximum size of {}MB",
+                            MAX_REQUEST_SIZE / (1024 * 1024)
+                        ),
+                    );
+                    writer.write_all(resp.as_bytes()).await.ok();
+                    writer.flush().await.ok();
+                    continue;
+                }
+
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+
+                let response = match protocol::parse_request(trimmed) {
+                    Ok(req) => {
+                        // Check for duplicate request ID
+                        let mut ids = seen_ids.lock().await;
+                        if ids.contains(&req.id) {
+                            protocol::format_error(
+                                &req.id,
+                                "E_DUPLICATE_ID",
+                                &format!("Request ID '{}' has already been used", req.id),
+                            )
+                        } else {
+                            ids.insert(req.id.clone());
+                            // Keep set bounded (last 10000 IDs)
+                            if ids.len() > 10000 {
+                                ids.clear();
+                            }
+                            drop(ids);
+                            handle_request(&req, uptime_s)
+                        }
+                    }
+                    Err(e) => {
+                        // Malformed JSON — return error but keep connection open
+                        let msg = e.to_string();
+                        if msg.contains("expected") || msg.contains("invalid") {
+                            protocol::format_error(
+                                "unknown",
+                                "E_INVALID_JSON",
+                                &format!("Malformed JSON: {msg}"),
+                            )
+                        } else {
+                            protocol::format_error(
+                                "unknown",
+                                "E_INVALID_PARAMS",
+                                &msg,
+                            )
+                        }
+                    }
+                };
+
+                if writer.write_all(response.as_bytes()).await.is_err() {
+                    break; // client disconnected
+                }
+                if writer.flush().await.is_err() {
+                    break;
+                }
+            }
+            Ok(Err(e)) => {
+                warn!("read error: {e}");
+                break;
+            }
+            Err(_) => {
+                // Inactivity timeout — close connection
+                let resp = protocol::format_error(
+                    "timeout",
+                    "E_INACTIVITY_TIMEOUT",
+                    "Connection closed due to 30s inactivity",
+                );
+                writer.write_all(resp.as_bytes()).await.ok();
+                writer.flush().await.ok();
+                info!("closing inactive connection");
+                break;
+            }
         }
-
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        let response = match protocol::parse_request(trimmed) {
-            Ok(req) => handle_request(&req, uptime_s),
-            Err(e) => protocol::format_error("unknown", "E_INVALID_PARAMS", &e.to_string()),
-        };
-
-        writer
-            .write_all(response.as_bytes())
-            .await
-            .context("failed to write response")?;
-        writer.flush().await?;
     }
 
     Ok(())
@@ -238,6 +327,59 @@ mod tests {
         let _ = server_task.await;
 
         // Cleanup
+        let _ = std::fs::remove_file(&socket_path);
+    }
+
+    #[tokio::test]
+    async fn test_malformed_json_keeps_connection() {
+        let socket_path = format!("/tmp/cortex-test-json-{}.sock", std::process::id());
+        let socket_path = PathBuf::from(&socket_path);
+        let _ = std::fs::remove_file(&socket_path);
+
+        let server = Server::new(&socket_path);
+        let shutdown = server.shutdown_handle();
+
+        let server_task = tokio::spawn(async move {
+            server.start().await.unwrap();
+        });
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        let mut stream = UnixStream::connect(&socket_path)
+            .await
+            .expect("failed to connect");
+
+        // Send malformed JSON
+        stream
+            .write_all(b"this is not json\n")
+            .await
+            .unwrap();
+
+        let mut buf = vec![0u8; 4096];
+        let n = stream.read(&mut buf).await.unwrap();
+        let response: serde_json::Value =
+            serde_json::from_slice(&buf[..n]).unwrap();
+
+        // Should get an error but connection stays open
+        assert!(response["error"]["code"].as_str().is_some());
+
+        // Can still send valid request on same connection
+        let status = r#"{"id":"s2","method":"status","params":{}}"#;
+        stream
+            .write_all(format!("{status}\n").as_bytes())
+            .await
+            .unwrap();
+
+        let n = stream.read(&mut buf).await.unwrap();
+        let response: serde_json::Value =
+            serde_json::from_slice(&buf[..n]).unwrap();
+
+        assert_eq!(response["id"], "s2");
+        assert!(response["result"]["version"].as_str().is_some());
+
+        drop(stream);
+        shutdown.notify_one();
+        let _ = server_task.await;
         let _ = std::fs::remove_file(&socket_path);
     }
 }
