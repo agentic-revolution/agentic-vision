@@ -5,12 +5,21 @@
 [![CI](https://github.com/cortex-ai/cortex/actions/workflows/ci.yml/badge.svg)](https://github.com/cortex-ai/cortex/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
+## Install
+
+```bash
+# One-liner (macOS / Linux)
+curl -fsSL https://cortex.dev/install | bash
+
+# Or via package managers
+cargo install cortex-runtime      # Rust
+brew install cortex-ai/cortex/cortex  # Homebrew
+npm install -g @cortex/cli        # npm
+```
+
 ## Quick Start
 
 ```bash
-# Install
-cargo install cortex-runtime
-
 # Map a site (auto-installs Chromium and starts daemon on first run)
 cortex map example.com
 
@@ -64,7 +73,12 @@ Agent  ──→  Client (Python/TS)  ──→  Unix Socket  ──→  Cortex 
 |-----------|---------|--------|
 | LangChain | `cortex-langchain` | Ready |
 | CrewAI | `cortex-crewai` | Ready |
+| AutoGen | `cortex-autogen` | Ready |
+| Semantic Kernel | `cortex-semantic-kernel` | Ready |
 | OpenClaw | `cortex-openclaw` | Ready |
+| MCP (Claude, Cursor, etc.) | `@cortex/mcp-server` | Ready |
+
+See [examples/](examples/) for runnable scripts demonstrating each integration.
 
 ## Clients
 
@@ -93,11 +107,15 @@ cortex/
 │   ├── python/       # Python thin client
 │   └── typescript/   # TypeScript thin client
 ├── integrations/
-│   ├── mcp-server/  # MCP server for Claude, Cursor, Continue, Windsurf
-│   ├── langchain/   # LangChain adapter
-│   ├── crewai/      # CrewAI adapter
-│   └── openclaw/    # OpenClaw skills
-└── docs/             # Guides and cookbooks
+│   ├── mcp-server/       # MCP server for Claude, Cursor, Continue, Windsurf
+│   ├── langchain/        # LangChain adapter
+│   ├── crewai/           # CrewAI adapter
+│   ├── autogen/          # AutoGen adapter
+│   ├── semantic-kernel/  # Semantic Kernel plugin
+│   └── openclaw/         # OpenClaw skills
+├── examples/             # Runnable example scripts (11 examples)
+├── publication/          # Research paper (LaTeX)
+└── docs/                 # Guides and cookbooks
 ```
 
 ## CLI Commands
@@ -118,6 +136,28 @@ cortex/
 | `cortex start --http-port 7700` | Start with REST API on the specified port |
 
 Global flags: `--json`, `--quiet`, `--verbose`, `--no-color`
+
+## Agent Auto-Setup
+
+```bash
+# Auto-discover all AI agents and inject Cortex as a tool
+cortex plug
+
+# Supported agents: Claude Desktop, Claude Code, Cursor, Windsurf, Continue, Cline
+cortex plug --list     # See detected agents
+cortex plug --status   # Check injection status
+cortex plug --remove   # Clean removal from all agents
+```
+
+## Docker
+
+```bash
+# Lite image (~25 MB, HTTP-only, no Chromium)
+docker run -p 7700:7700 cortex-ai/cortex:lite
+
+# Full image (~350 MB, includes Chromium)
+docker run -p 7700:7700 cortex-ai/cortex:full
+```
 
 ## Known Limitations
 

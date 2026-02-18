@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.4.3 (2026-02-18)
+
+### Phase 7E — Public Release Completion
+
+- **Examples directory**: 11 runnable example scripts covering quickstart, price comparison, pathfinding, cross-site comparison, page perception, and all 5 framework integrations (LangChain, CrewAI, AutoGen, Semantic Kernel, MCP)
+- **README overhaul**: Added installation methods (curl, Homebrew, npm, cargo), agent auto-setup section, Docker section, expanded framework table (AutoGen, Semantic Kernel, MCP), updated project structure
+- **Research paper**: Publication-grade LaTeX paper in `publication/` with 8 figures, 8 tables, 22 references, 100-site benchmark data
+
 ## v0.4.2 (2026-02-18)
 
 ### Improvements
