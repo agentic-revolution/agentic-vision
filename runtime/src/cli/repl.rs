@@ -11,6 +11,7 @@ use crate::cli::output::Styled;
 use crate::cli::repl_commands;
 use crate::cli::repl_complete;
 use anyhow::Result;
+use rustyline::config::CompletionType;
 use rustyline::error::ReadlineError;
 use rustyline::{Config, Editor};
 
@@ -39,8 +40,8 @@ async fn print_banner() {
 
     eprintln!();
     eprintln!(
-        "    Type {} for commands, {} to complete, {} to quit.",
-        s.cyan("/help"),
+        "    Press {} to browse commands, {} to complete, {} to quit.",
+        s.cyan("/"),
         s.dim("Tab"),
         s.dim("/exit")
     );
@@ -90,16 +91,21 @@ pub async fn run() -> Result<()> {
     // Print welcome banner
     print_banner().await;
 
-    // Configure rustyline
+    // Configure rustyline with List completion (shows all matches like Bash)
     let config = Config::builder()
         .history_ignore_space(true)
         .auto_add_history(true)
+        .completion_type(CompletionType::List)
+        .completion_prompt_limit(20)
         .build();
 
     let helper = repl_complete::CortexHelper::new();
     let mut rl: Editor<repl_complete::CortexHelper, rustyline::history::DefaultHistory> =
         Editor::with_config(config)?;
     rl.set_helper(Some(helper));
+
+    // Bind custom keys for smart Tab completion and command picker
+    repl_complete::bind_keys(&mut rl);
 
     // Load history
     let hist_path = history_path();

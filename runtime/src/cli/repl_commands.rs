@@ -41,6 +41,12 @@ pub async fn execute(input: &str, state: &mut ReplState) -> Result<bool> {
     // Strip leading / if present
     let input = input.strip_prefix('/').unwrap_or(input);
 
+    // Bare `/` with nothing else → show help
+    if input.is_empty() {
+        cmd_help();
+        return Ok(false);
+    }
+
     // Split into command and arguments
     let mut parts = input.splitn(2, ' ');
     let cmd = parts.next().unwrap_or("");
@@ -63,11 +69,20 @@ pub async fn execute(input: &str, state: &mut ReplState) -> Result<bool> {
         "plug" => cmd_plug().await?,
         _ => {
             let s = Styled::new();
-            eprintln!(
-                "  {} Unknown command '/{cmd}'. Type {} for available commands.",
-                s.warn_sym(),
-                s.bold("/help")
-            );
+            if let Some(suggestion) = crate::cli::repl_complete::suggest_command(cmd) {
+                eprintln!(
+                    "  {} Unknown command '/{cmd}'. Did you mean {}?",
+                    s.warn_sym(),
+                    s.bold(suggestion)
+                );
+            } else {
+                eprintln!(
+                    "  {} Unknown command '/{cmd}'. Type {} or press {} for commands.",
+                    s.warn_sym(),
+                    s.bold("/help"),
+                    s.bold("/")
+                );
+            }
         }
     }
 

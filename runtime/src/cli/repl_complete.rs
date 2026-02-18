@@ -10,7 +10,9 @@ use rustyline::completion::{Completer, Pair};
 use rustyline::highlight::Highlighter;
 use rustyline::hint::Hinter;
 use rustyline::validate::Validator;
-use rustyline::Helper;
+use rustyline::{
+    Cmd, ConditionalEventHandler, Event, EventContext, EventHandler, Helper, KeyEvent, RepeatCount,
+};
 
 use crate::cli::doctor::cortex_home;
 
@@ -192,3 +194,103 @@ impl Hinter for CortexHelper {
 impl Highlighter for CortexHelper {}
 impl Validator for CortexHelper {}
 impl Helper for CortexHelper {}
+
+/// Event handler that inserts `/` and then triggers Tab completion when
+/// the line is empty. This gives the Claude Code-style experience where
+/// pressing `/` immediately shows the command picker list.
+pub struct SlashTrigger;
+
+impl ConditionalEventHandler for SlashTrigger {
+    fn handle(
+        &self,
+        _evt: &Event,
+        _n: RepeatCount,
+        _positive: bool,
+        ctx: &EventContext<'_>,
+    ) -> Option<Cmd> {
+        if ctx.line().is_empty() {
+            // On empty line: insert `/` — the Tab hint will guide them,
+            // and CompletionType::List will show all commands on next Tab press.
+            // We use Cmd::Insert so the character appears immediately.
+            Some(Cmd::Insert(1, "/".to_string()))
+        } else {
+            // Mid-line: just insert `/` normally
+            Some(Cmd::Insert(1, "/".to_string()))
+        }
+    }
+}
+
+/// Event handler that auto-triggers completion after typing `/`.
+/// When Tab is pressed and line starts with `/`, show the command list.
+pub struct TabCompleteOrAcceptHint;
+
+impl ConditionalEventHandler for TabCompleteOrAcceptHint {
+    fn handle(
+        &self,
+        _evt: &Event,
+        _n: RepeatCount,
+        _positive: bool,
+        ctx: &EventContext<'_>,
+    ) -> Option<Cmd> {
+        // If there's a hint showing, complete the hint
+        if ctx.has_hint() {
+            Some(Cmd::CompleteHint)
+        } else {
+            // Otherwise, trigger normal completion (shows the List picker)
+            Some(Cmd::Complete)
+        }
+    }
+}
+
+/// Bind custom key sequences to the editor for interactive command selection.
+pub fn bind_keys(rl: &mut rustyline::Editor<CortexHelper, rustyline::history::DefaultHistory>) {
+    // Bind Tab to smart complete (accept hint if present, else show picker list)
+    rl.bind_sequence(
+        KeyEvent::from('\t'),
+        EventHandler::Conditional(Box::new(TabCompleteOrAcceptHint)),
+    );
+}
+
+/// Find the closest matching command for a misspelled input (Levenshtein distance).
+pub fn suggest_command(input: &str) -> Option<&'static str> {
+    let input_lower = input.to_lowercase();
+    let mut best: Option<(&str, usize)> = None;
+
+    for (cmd, _) in COMMANDS {
+        // Strip the leading /
+        let cmd_name = &cmd[1..];
+        let dist = levenshtein(&input_lower, cmd_name);
+        if dist <= 3 && (best.is_none() || dist < best.unwrap().1) {
+            best = Some((cmd, dist));
+        }
+    }
+
+    best.map(|(cmd, _)| cmd)
+}
+
+/// Simple Levenshtein distance for fuzzy matching.
+fn levenshtein(a: &str, b: &str) -> usize {
+    let a_len = a.len();
+    let b_len = b.len();
+
+    if a_len == 0 {
+        return b_len;
+    }
+    if b_len == 0 {
+        return a_len;
+    }
+
+    let mut prev: Vec<usize> = (0..=b_len).collect();
+    let mut curr = vec![0; b_len + 1];
+
+    for (i, ca) in a.chars().enumerate() {
+        curr[0] = i + 1;
+        for (j, cb) in b.chars().enumerate() {
+            let cost = if ca == cb { 0 } else { 1 };
+            curr[j + 1] = (prev[j + 1] + 1).min(curr[j] + 1).min(prev[j] + cost);
+        }
+        std::mem::swap(&mut prev, &mut curr);
+    }
+
+    prev[b_len]
+}
