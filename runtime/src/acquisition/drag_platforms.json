@@ -1,0 +1,74 @@
+{
+  "trello.com": {
+    "drag_type": "card_move",
+    "api": {
+      "method": "PUT",
+      "path": "/1/cards/{card_id}",
+      "body": {"idList": "{target_list}", "pos": "{position}"}
+    },
+    "source_selector": "[data-testid='trello-card'], .list-card",
+    "source_id": "data-card-id",
+    "target_selector": "[data-testid='list'], .list",
+    "target_id": "data-list-id"
+  },
+  "github.com": {
+    "drag_type": "project_card_move",
+    "api": {
+      "method": "PATCH",
+      "path": "/projects/columns/cards/{card_id}/moves",
+      "body": {"position": "{position}", "column_id": "{column_id}"}
+    },
+    "source_selector": ".project-card, [data-card-id]",
+    "source_id": "data-card-id",
+    "target_selector": ".project-column, [data-column-id]",
+    "target_id": "data-column-id"
+  },
+  "asana.com": {
+    "drag_type": "task_move",
+    "api": {
+      "method": "PUT",
+      "path": "/api/1.0/tasks/{task_id}",
+      "body": {"memberships": [{"project": "{project_id}", "section": "{section_id}"}]}
+    },
+    "source_selector": ".BoardCardLayout, [data-task-id]",
+    "source_id": "data-task-id",
+    "target_selector": ".BoardColumnBody, [data-section-id]",
+    "target_id": "data-section-id"
+  },
+  "notion.so": {
+    "drag_type": "block_move",
+    "api": {
+      "method": "POST",
+      "path": "/api/v3/saveTransactions",
+      "body": {"operations": [{"command": "move", "id": "{block_id}", "path": ["content"], "args": {"after": "{after_id}"}}]}
+    },
+    "source_selector": "[data-block-id]",
+    "source_id": "data-block-id",
+    "target_selector": "[data-block-id]",
+    "target_id": "data-block-id"
+  },
+  "monday.com": {
+    "drag_type": "item_move",
+    "api": {
+      "method": "POST",
+      "path": "/api/v2",
+      "body": {"query": "mutation { move_item_to_group (item_id: {item_id}, group_id: \"{group_id}\") { id }}"}
+    },
+    "source_selector": ".pulse-component, [data-pulse-id]",
+    "source_id": "data-pulse-id",
+    "target_selector": ".board-group, [data-group-id]",
+    "target_id": "data-group-id"
+  },
+  "jira.atlassian.com": {
+    "drag_type": "issue_move",
+    "api": {
+      "method": "POST",
+      "path": "/rest/agile/1.0/issue/{issue_key}/transitions",
+      "body": {"transition": {"id": "{transition_id}"}}
+    },
+    "source_selector": "[data-rbd-draggable-id], .ghx-issue",
+    "source_id": "data-issue-key",
+    "target_selector": "[data-rbd-droppable-id], .ghx-column",
+    "target_id": "data-column-id"
+  }
+}

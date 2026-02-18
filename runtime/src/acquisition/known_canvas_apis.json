@@ -1,0 +1,44 @@
+{
+  "docs.google.com/spreadsheets": {
+    "data_api": "/gviz/tq?tq=SELECT%20*",
+    "edit_api": "/edit",
+    "auth": "google_cookies",
+    "format": "json",
+    "app_type": "spreadsheet"
+  },
+  "figma.com": {
+    "data_api": "https://api.figma.com/v1/files/{file_key}",
+    "edit_api": null,
+    "auth": "bearer_token",
+    "format": "json",
+    "app_type": "design"
+  },
+  "miro.com": {
+    "data_api": "https://api.miro.com/v2/boards/{board_id}",
+    "edit_api": null,
+    "auth": "bearer_token",
+    "format": "json",
+    "app_type": "whiteboard"
+  },
+  "airtable.com": {
+    "data_api": "https://api.airtable.com/v0/{base_id}/{table_name}",
+    "edit_api": null,
+    "auth": "bearer_token",
+    "format": "json",
+    "app_type": "spreadsheet"
+  },
+  "lucid.app": {
+    "data_api": "/api/documents/{doc_id}",
+    "edit_api": null,
+    "auth": "session_cookie",
+    "format": "json",
+    "app_type": "diagram"
+  },
+  "excalidraw.com": {
+    "data_api": "/api/v2/scenes/{scene_id}",
+    "edit_api": null,
+    "auth": null,
+    "format": "json",
+    "app_type": "whiteboard"
+  }
+}

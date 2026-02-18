@@ -1,0 +1,41 @@
+{
+  "slack.com": {
+    "ws_url_pattern": "wss://wss-primary.slack.com/",
+    "protocol": "raw",
+    "auth": "query_param_token",
+    "ping": {"type": "ping", "id": 0},
+    "send_message": {"type": "message", "channel": "{channel}", "text": "{text}"}
+  },
+  "discord.com": {
+    "ws_url": "wss://gateway.discord.gg/?v=10&encoding=json",
+    "protocol": "raw",
+    "auth": "first_message",
+    "auth_message": {"op": 2, "d": {"token": "{token}", "intents": 513}},
+    "heartbeat": {"op": 1, "d": null}
+  },
+  "teams.microsoft.com": {
+    "ws_url_pattern": "wss://trouter2-{region}-signal.trouter.teams.microsoft.com/",
+    "protocol": "raw",
+    "auth": "query_param_token"
+  },
+  "web.whatsapp.com": {
+    "ws_url": "wss://web.whatsapp.com/ws/chat",
+    "protocol": "raw",
+    "auth": "cookie"
+  },
+  "linear.app": {
+    "ws_url": "wss://sync.linear.app/",
+    "protocol": "raw",
+    "auth": "header"
+  },
+  "firebase.google.com": {
+    "ws_url_pattern": "wss://{project}.firebaseio.com/.ws",
+    "protocol": "raw",
+    "auth": "query_param_token"
+  },
+  "supabase.co": {
+    "ws_url_pattern": "wss://{project}.supabase.co/realtime/v1/websocket",
+    "protocol": "raw",
+    "auth": "query_param_token"
+  }
+}

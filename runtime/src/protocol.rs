@@ -18,6 +18,10 @@ pub enum Method {
     Watch,
     Perceive,
     Auth,
+    AuthConsent,
+    AuthMfa,
+    ConnectWs,
+    SendWs,
     Status,
 }
 
@@ -34,9 +38,13 @@ impl Method {
             "watch" => Ok(Self::Watch),
             "perceive" => Ok(Self::Perceive),
             "auth" => Ok(Self::Auth),
+            "auth_consent" => Ok(Self::AuthConsent),
+            "auth_mfa" => Ok(Self::AuthMfa),
+            "connect_ws" => Ok(Self::ConnectWs),
+            "send_ws" => Ok(Self::SendWs),
             "status" => Ok(Self::Status),
             _ => bail!(
-                "unknown method '{s}'. Valid methods: handshake, map, query, pathfind, refresh, act, watch, perceive, auth, status"
+                "unknown method '{s}'. Valid methods: handshake, map, query, pathfind, refresh, act, watch, perceive, auth, auth_consent, auth_mfa, connect_ws, send_ws, status"
             ),
         }
     }

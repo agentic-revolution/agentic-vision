@@ -5,3 +5,4 @@ pub mod perceive;
 pub mod refresh;
 pub mod session;
 pub mod watch;
+pub mod websocket;

@@ -7,6 +7,7 @@ use crate::acquisition::http_client::HttpClient;
 use crate::acquisition::http_session::{AuthType, HttpSession};
 use anyhow::{bail, Result};
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 // ---- Public types -----------------------------------------------------------
@@ -52,6 +53,82 @@ pub struct LoginFormField {
     pub is_username: bool,
     /// Whether this field is the password field.
     pub is_password: bool,
+}
+
+// ---- OAuth types ------------------------------------------------------------
+
+/// Result of an HTTP-native OAuth flow.
+///
+/// OAuth redirect chains can often be completed without a browser when consent
+/// was previously granted. When consent *is* needed, the flow pauses for
+/// agent/user approval.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum OAuthResult {
+    /// Consent was pre-approved — auth code obtained via redirect chain.
+    SilentSuccess {
+        /// The authorization code.
+        code: String,
+        /// The final redirect URL containing the code.
+        redirect_url: String,
+    },
+    /// Consent is needed — pausing for user/agent approval.
+    ConsentRequired {
+        /// OAuth scopes requested.
+        scopes: Vec<String>,
+        /// Application name requesting access.
+        app_name: String,
+        /// The parsed consent form for submission.
+        consent_form: ConsentForm,
+    },
+    /// Multi-factor authentication required during auth flow.
+    MfaRequired {
+        /// Type of MFA challenge.
+        mfa_type: MfaType,
+        /// The MFA challenge form.
+        challenge_form: HtmlForm,
+    },
+    /// HTTP approach failed — fall back to browser.
+    BrowserFallbackNeeded {
+        /// Reason the HTTP approach failed.
+        reason: String,
+    },
+}
+
+/// A parsed consent form from an OAuth provider.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConsentForm {
+    /// The URL to POST consent approval to.
+    pub action_url: String,
+    /// Hidden fields required for the POST (state, CSRF, etc.).
+    pub hidden_fields: HashMap<String, String>,
+    /// The OAuth provider name.
+    pub provider: String,
+}
+
+/// Type of MFA challenge.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum MfaType {
+    /// Time-based one-time password (TOTP / authenticator app).
+    Totp,
+    /// SMS verification code.
+    Sms,
+    /// Email verification code.
+    Email,
+    /// Push notification (e.g., Duo).
+    Push,
+    /// Unknown MFA type.
+    Unknown,
+}
+
+/// A parsed HTML form with action URL and fields.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HtmlForm {
+    /// The URL the form posts to.
+    pub action_url: String,
+    /// HTTP method (usually POST).
+    pub method: String,
+    /// All form fields: name → value.
+    pub fields: HashMap<String, String>,
 }
 
 // ---- Public async API -------------------------------------------------------
@@ -199,6 +276,182 @@ pub fn login_bearer(domain: &str, token: &str) -> HttpSession {
     let mut session = HttpSession::new(domain, AuthType::Bearer);
     session.add_auth_header("Authorization", &format!("Bearer {token}"));
     session
+}
+
+// ---- OAuth HTTP flow --------------------------------------------------------
+
+/// Attempt OAuth login via HTTP redirect chain (no browser).
+///
+/// Follows the OAuth redirect chain via HTTP. If consent was previously
+/// granted, the provider redirects directly to the callback with an auth
+/// code — zero browser, sub-second. If consent is needed, parses the
+/// consent page HTML and returns `OAuthResult::ConsentRequired`.
+///
+/// # Arguments
+///
+/// * `client` - HTTP client for making requests.
+/// * `auth_url` - The initial OAuth authorization URL (e.g., from the login page).
+/// * `provider` - OAuth provider name (e.g., `"google"`, `"github"`).
+pub async fn login_oauth_http(
+    client: &HttpClient,
+    auth_url: &str,
+    provider: &str,
+) -> Result<OAuthResult> {
+    // Step 1: Follow redirects via HTTP GET.
+    // We use the client to follow the initial redirect chain.
+    let resp = client.get(auth_url, 15_000).await?;
+
+    // Check if we got redirected to a callback URL with an auth code.
+    // This happens when consent was previously granted.
+    if let Some(code) = extract_auth_code_from_url(&resp.final_url) {
+        tracing::info!("OAuth silent success for {provider}: consent was pre-approved");
+        return Ok(OAuthResult::SilentSuccess {
+            code,
+            redirect_url: resp.final_url,
+        });
+    }
+
+    // Check for MFA challenge pages.
+    if is_mfa_page(&resp.body) {
+        let mfa_type = detect_mfa_type(&resp.body);
+        let form = parse_first_form(&resp.body, &resp.final_url);
+        return Ok(match form {
+            Some(f) => OAuthResult::MfaRequired {
+                mfa_type,
+                challenge_form: f,
+            },
+            None => OAuthResult::BrowserFallbackNeeded {
+                reason: "MFA page found but could not parse form".to_string(),
+            },
+        });
+    }
+
+    // Step 2: If we're on a consent page, parse it.
+    if resp.status == 200 && is_consent_page(&resp.body) {
+        let scopes = extract_oauth_scopes(&resp.body);
+        let app_name = extract_app_name(&resp.body);
+        let consent_form = parse_consent_form(&resp.body, &resp.final_url, provider);
+
+        return Ok(match consent_form {
+            Some(form) => OAuthResult::ConsentRequired {
+                scopes,
+                app_name,
+                consent_form: form,
+            },
+            None => OAuthResult::BrowserFallbackNeeded {
+                reason: "consent page found but could not parse approval form".to_string(),
+            },
+        });
+    }
+
+    // Step 3: If the response is an error or unknown page, fall back to browser.
+    if resp.status >= 400 {
+        return Ok(OAuthResult::BrowserFallbackNeeded {
+            reason: format!("OAuth redirect returned status {}", resp.status),
+        });
+    }
+
+    // Unknown page — might need browser interaction.
+    Ok(OAuthResult::BrowserFallbackNeeded {
+        reason: "could not complete OAuth flow via HTTP".to_string(),
+    })
+}
+
+/// Complete an OAuth consent form by POSTing approval.
+///
+/// Called after the agent/user approves the consent request.
+///
+/// Returns the authorization code on success.
+pub async fn complete_oauth_consent(
+    client: &HttpClient,
+    consent_form: &ConsentForm,
+    approved: bool,
+) -> Result<String> {
+    if !approved {
+        bail!("OAuth consent was denied by user/agent");
+    }
+
+    // Build form data from hidden fields + approval flag.
+    let mut form_data: Vec<(String, String)> = consent_form
+        .hidden_fields
+        .iter()
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
+    form_data.push(("submit_access".to_string(), "true".to_string()));
+
+    let resp = client
+        .post_form(&consent_form.action_url, &form_data, &[], 15_000)
+        .await?;
+
+    // Check if the response redirected to a callback URL with an auth code.
+    if let Some(code) = extract_auth_code_from_url(&resp.final_url) {
+        return Ok(code);
+    }
+
+    // Try to find the code in the response body (some providers embed it).
+    if let Some(code) = extract_auth_code_from_body(&resp.body) {
+        return Ok(code);
+    }
+
+    bail!(
+        "OAuth consent submission did not yield an auth code (status: {})",
+        resp.status
+    )
+}
+
+/// Submit an MFA code via form POST.
+///
+/// Returns an updated session with cookies from the MFA response.
+pub async fn handle_oauth_mfa(
+    client: &HttpClient,
+    form: &HtmlForm,
+    mfa_code: &str,
+    domain: &str,
+) -> Result<HttpSession> {
+    let mut form_data: Vec<(String, String)> = form
+        .fields
+        .iter()
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
+
+    // Common MFA field names.
+    let mfa_field_names = ["code", "otp", "mfa_code", "verification_code", "pin"];
+    let mfa_field = form
+        .fields
+        .keys()
+        .find(|k| {
+            let lower = k.to_lowercase();
+            mfa_field_names.iter().any(|n| lower.contains(n))
+        })
+        .cloned();
+
+    if let Some(field_name) = mfa_field {
+        // Update the existing field.
+        for (k, v) in &mut form_data {
+            if k == &field_name {
+                *v = mfa_code.to_string();
+            }
+        }
+    } else {
+        // Use "code" as default field name.
+        form_data.push(("code".to_string(), mfa_code.to_string()));
+    }
+
+    let resp = client
+        .post_form(&form.action_url, &form_data, &[], 15_000)
+        .await?;
+
+    let cookies = parse_set_cookies(&resp.headers);
+    if cookies.is_empty() && resp.status >= 400 {
+        bail!("MFA verification failed: status {}", resp.status);
+    }
+
+    let mut session = HttpSession::new(domain, AuthType::OAuth("mfa".to_string()));
+    for (name, value) in cookies {
+        session.add_cookie(&name, &value);
+    }
+
+    Ok(session)
 }
 
 // ---- Private helpers --------------------------------------------------------
@@ -423,6 +676,163 @@ fn resolve_url(base_url: &str, relative: &str) -> String {
     relative.to_string()
 }
 
+// ---- OAuth private helpers --------------------------------------------------
+
+/// Extract an authorization code from a redirect URL's query parameters.
+fn extract_auth_code_from_url(url: &str) -> Option<String> {
+    let parsed = url::Url::parse(url).ok()?;
+    parsed
+        .query_pairs()
+        .find(|(k, _)| k == "code")
+        .map(|(_, v)| v.to_string())
+}
+
+/// Extract an authorization code from an HTML response body.
+fn extract_auth_code_from_body(body: &str) -> Option<String> {
+    let code_re = Regex::new(r#"code['"]\s*(?:value|content)\s*=\s*['"]([^'"]+)['"]"#).ok()?;
+    code_re
+        .captures(body)
+        .and_then(|c| c.get(1))
+        .map(|m| m.as_str().to_string())
+}
+
+/// Check if an HTML page looks like an OAuth consent page.
+fn is_consent_page(html: &str) -> bool {
+    let lower = html.to_lowercase();
+    (lower.contains("consent") || lower.contains("authorize") || lower.contains("grant access"))
+        && (lower.contains("scope") || lower.contains("permission"))
+}
+
+/// Check if an HTML page looks like an MFA challenge page.
+fn is_mfa_page(html: &str) -> bool {
+    let lower = html.to_lowercase();
+    (lower.contains("verification")
+        || lower.contains("2-step")
+        || lower.contains("two-factor")
+        || lower.contains("mfa")
+        || lower.contains("authenticator"))
+        && (lower.contains("<form") || lower.contains("<input"))
+}
+
+/// Detect the type of MFA challenge from page content.
+fn detect_mfa_type(html: &str) -> MfaType {
+    let lower = html.to_lowercase();
+    if lower.contains("authenticator") || lower.contains("totp") || lower.contains("6-digit") {
+        MfaType::Totp
+    } else if lower.contains("sms") || lower.contains("text message") || lower.contains("phone") {
+        MfaType::Sms
+    } else if lower.contains("email") && lower.contains("code") {
+        MfaType::Email
+    } else if lower.contains("push") || lower.contains("notification") || lower.contains("duo") {
+        MfaType::Push
+    } else {
+        MfaType::Unknown
+    }
+}
+
+/// Extract OAuth scopes from a consent page.
+fn extract_oauth_scopes(html: &str) -> Vec<String> {
+    let mut scopes = Vec::new();
+
+    // Look for scope items in list elements.
+    let scope_re = Regex::new(r#"(?i)<li[^>]*class="[^"]*scope[^"]*"[^>]*>([^<]+)</li>"#).unwrap();
+    for caps in scope_re.captures_iter(html) {
+        if let Some(m) = caps.get(1) {
+            let scope = m.as_str().trim().to_string();
+            if !scope.is_empty() && !scopes.contains(&scope) {
+                scopes.push(scope);
+            }
+        }
+    }
+
+    // Fallback: look for common scope keywords.
+    if scopes.is_empty() {
+        let scope_keywords = ["email", "profile", "openid", "read", "write"];
+        let lower = html.to_lowercase();
+        for keyword in &scope_keywords {
+            if lower.contains(keyword) {
+                scopes.push(keyword.to_string());
+            }
+        }
+    }
+
+    scopes
+}
+
+/// Extract the application name from a consent page.
+fn extract_app_name(html: &str) -> String {
+    // Try to find app name in common patterns.
+    let app_re =
+        Regex::new(r#"(?i)(?:<strong>|<b>|class="[^"]*app[_-]?name[^"]*"[^>]*>)([^<]+)<"#).unwrap();
+
+    if let Some(caps) = app_re.captures(html) {
+        if let Some(m) = caps.get(1) {
+            return m.as_str().trim().to_string();
+        }
+    }
+
+    "Unknown Application".to_string()
+}
+
+/// Parse a consent form from an OAuth consent page.
+fn parse_consent_form(html: &str, base_url: &str, provider: &str) -> Option<ConsentForm> {
+    let form = parse_first_form(html, base_url)?;
+
+    Some(ConsentForm {
+        action_url: form.action_url,
+        hidden_fields: form.fields,
+        provider: provider.to_string(),
+    })
+}
+
+/// Parse the first `<form>` tag from HTML into an HtmlForm.
+fn parse_first_form(html: &str, base_url: &str) -> Option<HtmlForm> {
+    let form_re = Regex::new(r"(?is)<form\b([^>]*)>(.*?)</form>").ok()?;
+    let action_re = Regex::new(r#"(?i)action\s*=\s*["']([^"']+)["']"#).ok()?;
+    let method_re = Regex::new(r#"(?i)method\s*=\s*["']([^"']+)["']"#).ok()?;
+    let input_re = Regex::new(r#"(?i)<input\b([^>]*)>"#).ok()?;
+    let name_re = Regex::new(r#"(?i)name\s*=\s*["']([^"']+)["']"#).ok()?;
+    let value_re = Regex::new(r#"(?i)value\s*=\s*["']([^"']*?)["']"#).ok()?;
+
+    let form_caps = form_re.captures(html)?;
+    let form_attrs = form_caps.get(1).map_or("", |m| m.as_str());
+    let form_body = form_caps.get(2).map_or("", |m| m.as_str());
+
+    let action_url = action_re
+        .captures(form_attrs)
+        .and_then(|c| c.get(1))
+        .map(|m| resolve_url(base_url, m.as_str()))
+        .unwrap_or_else(|| base_url.to_string());
+
+    let method = method_re
+        .captures(form_attrs)
+        .and_then(|c| c.get(1))
+        .map(|m| m.as_str().to_uppercase())
+        .unwrap_or_else(|| "POST".to_string());
+
+    let mut fields = HashMap::new();
+    for input_caps in input_re.captures_iter(form_body) {
+        let input_attrs = input_caps.get(1).map_or("", |m| m.as_str());
+        if let Some(name_cap) = name_re.captures(input_attrs) {
+            let name = name_cap.get(1).map_or("", |m| m.as_str()).to_string();
+            let value = value_re
+                .captures(input_attrs)
+                .and_then(|c| c.get(1))
+                .map(|m| m.as_str().to_string())
+                .unwrap_or_default();
+            if !name.is_empty() {
+                fields.insert(name, value);
+            }
+        }
+    }
+
+    Some(HtmlForm {
+        action_url,
+        method,
+        fields,
+    })
+}
+
 // ---- Tests ------------------------------------------------------------------
 
 #[cfg(test)]
@@ -590,6 +1000,111 @@ mod tests {
 
         let links = find_login_links(html, "https://example.com");
         assert!(links.is_empty());
+    }
+
+    #[test]
+    fn test_extract_auth_code_from_url() {
+        let url = "https://example.com/callback?code=abc123&state=xyz";
+        assert_eq!(extract_auth_code_from_url(url), Some("abc123".to_string()));
+
+        let no_code = "https://example.com/callback?error=denied";
+        assert_eq!(extract_auth_code_from_url(no_code), None);
+    }
+
+    #[test]
+    fn test_is_consent_page() {
+        let consent_html = r#"
+        <html><body>
+            <h1>ExampleApp wants to access your account</h1>
+            <p>This app is requesting the following permissions (scope):</p>
+            <ul><li>View your email</li><li>View your profile</li></ul>
+            <form action="/consent" method="POST">
+                <input type="hidden" name="state" value="abc" />
+                <button name="submit_access" value="true">Grant access</button>
+            </form>
+        </body></html>
+        "#;
+        assert!(is_consent_page(consent_html));
+
+        let normal_html = "<html><body><h1>Welcome</h1></body></html>";
+        assert!(!is_consent_page(normal_html));
+    }
+
+    #[test]
+    fn test_is_mfa_page() {
+        let mfa_html = r#"
+        <html><body>
+            <h1>2-Step Verification</h1>
+            <p>Enter the 6-digit code from your authenticator app</p>
+            <form action="/verify" method="POST">
+                <input type="text" name="code" />
+                <button type="submit">Verify</button>
+            </form>
+        </body></html>
+        "#;
+        assert!(is_mfa_page(mfa_html));
+
+        let normal = "<html><body><h1>Login</h1></body></html>";
+        assert!(!is_mfa_page(normal));
+    }
+
+    #[test]
+    fn test_detect_mfa_type() {
+        assert!(matches!(
+            detect_mfa_type("Enter the 6-digit code from your authenticator app"),
+            MfaType::Totp
+        ));
+        assert!(matches!(
+            detect_mfa_type("We sent a code via SMS to your phone"),
+            MfaType::Sms
+        ));
+        assert!(matches!(
+            detect_mfa_type("Check your email for a verification code"),
+            MfaType::Email
+        ));
+        assert!(matches!(
+            detect_mfa_type("Approve the push notification on your Duo app"),
+            MfaType::Push
+        ));
+    }
+
+    #[test]
+    fn test_parse_consent_form() {
+        let html = r#"
+        <html><body>
+            <form action="/oauth/approve" method="POST">
+                <input type="hidden" name="state" value="xyz789" />
+                <input type="hidden" name="client_id" value="app123" />
+                <input type="hidden" name="scope" value="email profile" />
+                <button name="submit_access" value="true">Allow</button>
+            </form>
+        </body></html>
+        "#;
+
+        let form = parse_consent_form(html, "https://accounts.example.com", "example");
+        assert!(form.is_some());
+
+        let f = form.unwrap();
+        assert_eq!(f.action_url, "https://accounts.example.com/oauth/approve");
+        assert_eq!(f.provider, "example");
+        assert_eq!(f.hidden_fields.get("state").unwrap(), "xyz789");
+        assert_eq!(f.hidden_fields.get("client_id").unwrap(), "app123");
+    }
+
+    #[test]
+    fn test_parse_first_form() {
+        let html = r#"
+        <form action="/submit" method="POST">
+            <input type="hidden" name="token" value="abc" />
+            <input type="text" name="code" value="" />
+        </form>
+        "#;
+
+        let form = parse_first_form(html, "https://example.com").unwrap();
+        assert_eq!(form.action_url, "https://example.com/submit");
+        assert_eq!(form.method, "POST");
+        assert_eq!(form.fields.get("token").unwrap(), "abc");
+        assert!(form.fields.contains_key("code"));
     }
 
     #[test]

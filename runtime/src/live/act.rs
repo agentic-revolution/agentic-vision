@@ -25,11 +25,33 @@ pub struct ActResult {
 }
 
 /// How an action was executed.
+///
+/// The execution priority stack (highest to lowest reliability):
+/// 1. WebMCP — site explicitly defined this tool
+/// 2. Platform API — known platform REST endpoints
+/// 3. HTTP action — discovered forms, JS endpoints
+/// 4. WebSocket — native WS message
+/// 5. Drag API — drag-and-drop via HTTP replay
+/// 6. Canvas API — canvas app REST endpoint
+/// 7. OAuth HTTP — HTTP-native OAuth flow
+/// 8. Browser — full browser simulation (last resort)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExecutionMethod {
-    /// Executed via HTTP POST/GET (fast, no browser).
+    /// Executed via WebMCP structured tool call (highest reliability).
+    WebMcp,
+    /// Executed via known platform REST API.
+    PlatformApi,
+    /// Executed via discovered HTTP action (forms, JS endpoints).
     Http,
-    /// Executed via browser rendering (slow, full JS).
+    /// Executed via native WebSocket message.
+    WebSocket,
+    /// Executed via drag-and-drop API replay.
+    DragApi,
+    /// Executed via canvas app REST API.
+    CanvasApi,
+    /// Executed via HTTP-native OAuth flow.
+    OAuthHttp,
+    /// Executed via browser rendering (last resort).
     Browser,
 }
 

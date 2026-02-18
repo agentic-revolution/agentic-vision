@@ -363,6 +363,19 @@ async fn handle_request(req: protocol::Request, state: Arc<SharedState>) -> Stri
             "E_NOT_IMPLEMENTED",
             &format!("{:?} not yet implemented", req.method),
         ),
+        Method::AuthConsent | Method::AuthMfa => protocol::format_error(
+            &req.id,
+            "E_NOT_IMPLEMENTED",
+            &format!("{:?} not yet implemented — use auth first", req.method),
+        ),
+        Method::ConnectWs | Method::SendWs => protocol::format_error(
+            &req.id,
+            "E_NOT_IMPLEMENTED",
+            &format!(
+                "{:?} not yet implemented — WebSocket support pending",
+                req.method
+            ),
+        ),
     }
 }
 
