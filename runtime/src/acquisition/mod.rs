@@ -8,4 +8,5 @@ pub mod api_discovery;
 pub mod feed_parser;
 pub mod head_scanner;
 pub mod http_client;
+pub mod pattern_engine;
 pub mod structured;

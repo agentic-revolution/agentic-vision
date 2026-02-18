@@ -12,6 +12,7 @@
 //! Layer 1 alone provides enough data.
 
 use crate::acquisition::http_client::HttpClient;
+use crate::acquisition::pattern_engine::{self, PatternResult};
 use crate::acquisition::structured::{self, StructuredData};
 use crate::acquisition::{api_discovery, feed_parser, head_scanner};
 use crate::cartography::{
@@ -188,13 +189,9 @@ impl Mapper {
             .filter(|resp| resp.status == 200)
             .collect();
 
-        // Parse structured data in a blocking task (scraper types are not Send)
+        // Parse structured data + pattern extraction in a blocking task (scraper types are not Send)
         let structured_results = tokio::task::spawn_blocking(move || {
-            let mut results: Vec<(
-                String,
-                StructuredData,
-                Option<crate::acquisition::http_client::HeadResponse>,
-            )> = Vec::new();
+            let mut results: Vec<FetchResult> = Vec::new();
             let mut extra_links: Vec<String> = Vec::new();
 
             for resp in ok_responses {
@@ -231,7 +228,18 @@ impl Mapper {
                         .map(|(_, v)| v.clone()),
                 };
 
-                results.push((resp.final_url, sd, Some(head)));
+                // Layer 1.5: Run pattern engine on pages with <50% structured data completeness
+                let sd_completeness = structured::data_completeness(&sd);
+                let pattern_result = if sd_completeness < 0.5 {
+                    Some(pattern_engine::extract_from_patterns(
+                        &resp.body,
+                        &resp.final_url,
+                    ))
+                } else {
+                    None
+                };
+
+                results.push((resp.final_url, sd, Some(head), pattern_result, resp.body));
             }
 
             (results, extra_links)
@@ -248,9 +256,14 @@ impl Mapper {
             }
         }
 
+        let pattern_count = structured_results
+            .iter()
+            .filter(|(_, _, _, pr, _)| pr.is_some())
+            .count();
         info!(
-            "Layer 1 complete: {} pages parsed in {:.1}s",
+            "Layer 1+1.5 complete: {} pages parsed ({} with pattern fallback) in {:.1}s",
             structured_results.len(),
+            pattern_count,
             start.elapsed().as_secs_f64()
         );
 
@@ -266,12 +279,25 @@ impl Mapper {
             }
         }
 
-        // ── Layer 3: Browser fallback (only for pages with <30% data completeness) ──
+        // ── Layer 3: Browser fallback (only for pages with <20% completeness after all layers) ──
 
         let needs_browser: Vec<String> = structured_results
             .iter()
-            .filter(|(_, sd, _)| structured::data_completeness(sd) < 0.3)
-            .map(|(url, _, _)| url.clone())
+            .filter(|(_, sd, _, pr, _)| {
+                let sd_completeness = structured::data_completeness(sd);
+                let has_pattern_data = pr
+                    .as_ref()
+                    .map(|p| {
+                        p.price.is_some()
+                            || p.rating.is_some()
+                            || p.availability.is_some()
+                            || p.page_type.is_some()
+                    })
+                    .unwrap_or(false);
+                // Only browser if BOTH structured AND patterns gave <20%
+                sd_completeness < 0.2 && !has_pattern_data
+            })
+            .map(|(url, _, _, _, _)| url.clone())
             .collect();
 
         let mut browser_pages: Vec<BrowserRenderedPage> = Vec::new();
@@ -305,10 +331,21 @@ impl Mapper {
 
         // ── Build the map from all layers ──
 
+        // Convert structured_results to the format build_map_from_layers expects
+        let layer_results: Vec<(
+            String,
+            StructuredData,
+            Option<crate::acquisition::http_client::HeadResponse>,
+            Option<PatternResult>,
+        )> = structured_results
+            .into_iter()
+            .map(|(url, sd, head, pr, _html)| (url, sd, head, pr))
+            .collect();
+
         self.build_map_from_layers(
             &request.domain,
             &all_urls,
-            &structured_results,
+            &layer_results,
             &browser_pages,
             request.max_nodes,
         )
@@ -408,6 +445,7 @@ impl Mapper {
             String,
             StructuredData,
             Option<crate::acquisition::http_client::HeadResponse>,
+            Option<PatternResult>,
         )],
         browser_pages: &[BrowserRenderedPage],
         max_nodes: u32,
@@ -423,7 +461,7 @@ impl Mapper {
             .collect();
 
         // First pass: add nodes with structured data (Layer 1) or browser data (Layer 3)
-        for (url, sd, head) in structured_results {
+        for (url, sd, head, pr) in structured_results {
             if url_to_index.len() as u32 >= max_nodes {
                 break;
             }
@@ -460,7 +498,7 @@ impl Mapper {
                     );
                 }
             } else {
-                // Use structured data (Layer 1)
+                // Use structured data (Layer 1) + pattern data (Layer 1.5) if available
                 let (sd_page_type, sd_confidence) = sd
                     .page_type
                     .unwrap_or_else(|| url_classifier::classify_url(url, domain));
@@ -475,19 +513,68 @@ impl Mapper {
                 };
                 let head_ref = head.as_ref().unwrap_or(&default_head);
 
-                let features =
+                let sd_features =
                     feature_encoder::encode_features_from_structured_data(sd, url, head_ref);
 
-                let idx =
-                    builder.add_node(url, sd_page_type, features, (sd_confidence * 255.0) as u8);
+                // Merge with pattern features if available
+                let features = if let Some(pattern_result) = pr {
+                    let pattern_features = feature_encoder::encode_features_from_patterns(
+                        pattern_result,
+                        url,
+                        head_ref,
+                    );
+                    let sd_completeness = structured::data_completeness(sd);
+                    // Pattern completeness: rough estimate from filled dimensions
+                    let pattern_completeness = pattern_features
+                        .iter()
+                        .filter(|&&v| v != 0.0)
+                        .count() as f32
+                        / FEATURE_DIM as f32;
+                    feature_encoder::merge_features(
+                        &sd_features,
+                        sd_completeness,
+                        &pattern_features,
+                        pattern_completeness,
+                        None,
+                    )
+                } else {
+                    sd_features
+                };
+
+                // Use pattern page type if higher confidence than structured
+                let (final_page_type, final_confidence) = if let Some(pattern_result) = pr {
+                    if let Some((pt, pc)) = pattern_result.page_type {
+                        if pc > sd_confidence {
+                            (pt, pc)
+                        } else {
+                            (sd_page_type, sd_confidence)
+                        }
+                    } else {
+                        (sd_page_type, sd_confidence)
+                    }
+                } else {
+                    (sd_page_type, sd_confidence)
+                };
+
+                let idx = builder.add_node(
+                    url,
+                    final_page_type,
+                    features,
+                    (final_confidence * 255.0) as u8,
+                );
                 url_to_index.insert(url.clone(), idx);
 
-                // Set flags based on structured data
+                // Set flags based on structured data + pattern data
                 let mut flag_bits: u8 = 0;
-                if !sd.products.is_empty() && sd.products.first().and_then(|p| p.price).is_some() {
+                let has_sd_price =
+                    !sd.products.is_empty() && sd.products.first().and_then(|p| p.price).is_some();
+                let has_pattern_price = pr.as_ref().is_some_and(|p| p.price.is_some());
+                if has_sd_price || has_pattern_price {
                     flag_bits |= NodeFlags::HAS_PRICE;
                 }
-                if !sd.forms.is_empty() {
+                let has_sd_form = !sd.forms.is_empty();
+                let has_pattern_form = pr.as_ref().is_some_and(|p| !p.forms.is_empty());
+                if has_sd_form || has_pattern_form {
                     flag_bits |= NodeFlags::HAS_FORM;
                 }
                 if sd.og.image.is_some() {
@@ -554,7 +641,7 @@ impl Mapper {
         }
 
         // Add edges from structured data links
-        for (url, sd, _) in structured_results {
+        for (url, sd, _, _) in structured_results {
             let from_idx = match url_to_index.get(url.as_str()) {
                 Some(&idx) => idx,
                 None => continue,
@@ -656,6 +743,15 @@ impl Mapper {
         Ok(builder.build())
     }
 }
+
+/// Intermediate result from HTTP fetch + structured data + pattern extraction.
+type FetchResult = (
+    String,
+    StructuredData,
+    Option<crate::acquisition::http_client::HeadResponse>,
+    Option<PatternResult>,
+    String, // raw HTML body
+);
 
 /// A page rendered via browser (Layer 3 fallback).
 struct BrowserRenderedPage {

@@ -11,6 +11,7 @@
 //! - Text ratings ("Excellent"): mapped to numeric 0.0–1.0.
 
 use crate::acquisition::http_client::HeadResponse;
+use crate::acquisition::pattern_engine::PatternResult;
 use crate::acquisition::structured::StructuredData;
 use crate::extraction::loader::ExtractionResult;
 use crate::map::types::*;
@@ -230,6 +231,134 @@ pub fn encode_features_from_structured_data(
     feats[FEAT_ACTION_COUNT] = (form_count as f32 / 20.0).clamp(0.0, 1.0);
 
     feats
+}
+
+/// Encode features from pattern-based extraction (Layer 1.5) without browser rendering.
+///
+/// Fills the same dimensions as [`encode_features_from_structured_data`] but with
+/// lower confidence values from CSS selectors, data attributes, and regex matches.
+/// The mapper uses whichever source has higher confidence per dimension.
+pub fn encode_features_from_patterns(
+    patterns: &PatternResult,
+    url: &str,
+    headers: &HeadResponse,
+) -> [f32; FEATURE_DIM] {
+    let mut feats = [0.0f32; FEATURE_DIM];
+
+    // ── Page Identity (0-15) ──
+    if let Some((page_type, confidence)) = patterns.page_type {
+        feats[FEAT_PAGE_TYPE] = (page_type as u8) as f32 / 31.0;
+        feats[FEAT_PAGE_TYPE_CONFIDENCE] = confidence;
+    }
+    feats[FEAT_IS_HTTPS] = if url.starts_with("https://") {
+        1.0
+    } else {
+        0.0
+    };
+    feats[FEAT_URL_PATH_DEPTH] = count_path_depth(url) as f32 / 10.0;
+    feats[FEAT_URL_HAS_QUERY] = if url.contains('?') { 1.0 } else { 0.0 };
+    feats[FEAT_URL_HAS_FRAGMENT] = if url.contains('#') { 1.0 } else { 0.0 };
+
+    // Content language from headers
+    if headers.content_language.is_some() {
+        feats[FEAT_CONTENT_LANGUAGE] = 1.0;
+    }
+
+    // ── Commerce Features (48-63) ──
+    if let Some((price, _confidence)) = patterns.price {
+        feats[FEAT_PRICE] = price;
+    }
+    if let Some((original, _confidence)) = patterns.original_price {
+        feats[FEAT_PRICE_ORIGINAL] = original;
+        if original > 0.0 {
+            if let Some((price, _)) = patterns.price {
+                feats[FEAT_DISCOUNT_PCT] = (1.0 - price / original).clamp(0.0, 1.0);
+            }
+        }
+    }
+    if let Some((avail, _confidence)) = patterns.availability {
+        feats[FEAT_AVAILABILITY] = avail;
+    }
+    if let Some((rating, _confidence)) = patterns.rating {
+        feats[FEAT_RATING] = rating;
+    }
+    if let Some((review_count, _confidence)) = patterns.review_count {
+        feats[FEAT_REVIEW_COUNT_LOG] = ((review_count as f32 + 1.0).ln() / 10.0).clamp(0.0, 1.0);
+    }
+
+    // ── Navigation Features (64-79) ──
+    feats[FEAT_IS_DEAD_END] = if patterns.actions.is_empty() && patterns.forms.is_empty() {
+        1.0
+    } else {
+        0.0
+    };
+
+    // ── Trust & Safety (80-95) ──
+    feats[FEAT_TLS_VALID] = if url.starts_with("https://") {
+        1.0
+    } else {
+        0.0
+    };
+    feats[FEAT_CONTENT_FRESHNESS] = 1.0; // Just fetched
+
+    // ── Action Features (96-111) ──
+    let action_count = patterns.actions.len() + patterns.forms.len();
+    feats[FEAT_ACTION_COUNT] = (action_count as f32 / 20.0).clamp(0.0, 1.0);
+
+    // Check for primary CTA (commerce or auth actions)
+    let has_cta = patterns
+        .actions
+        .iter()
+        .any(|a| a.opcode.0 == 0x02 || a.opcode.0 == 0x04);
+    feats[FEAT_PRIMARY_CTA_PRESENT] = if has_cta { 1.0 } else { 0.0 };
+
+    feats[FEAT_FORM_FIELD_COUNT] = (patterns
+        .forms
+        .iter()
+        .map(|f| f.fields.len())
+        .sum::<usize>() as f32
+        / 20.0)
+        .clamp(0.0, 1.0);
+
+    feats
+}
+
+/// Merge features from multiple sources, picking the highest-confidence value per dimension.
+///
+/// For each dimension, selects the value with the highest confidence. Browser features
+/// always win when available (implicit confidence 1.0).
+pub fn merge_features(
+    structured: &[f32; FEATURE_DIM],
+    structured_completeness: f32,
+    patterns: &[f32; FEATURE_DIM],
+    pattern_completeness: f32,
+    browser: Option<&[f32; FEATURE_DIM]>,
+) -> [f32; FEATURE_DIM] {
+    let mut result = [0.0f32; FEATURE_DIM];
+    for i in 0..FEATURE_DIM {
+        // Browser always wins if available and non-zero
+        if let Some(browser_features) = browser {
+            if browser_features[i] != 0.0 {
+                result[i] = browser_features[i];
+                continue;
+            }
+        }
+
+        // Pick the source with higher completeness for non-zero values
+        if structured[i] != 0.0 && patterns[i] != 0.0 {
+            // Both have data — pick the one from the more complete source
+            result[i] = if structured_completeness >= pattern_completeness {
+                structured[i]
+            } else {
+                patterns[i]
+            };
+        } else if structured[i] != 0.0 {
+            result[i] = structured[i];
+        } else {
+            result[i] = patterns[i];
+        }
+    }
+    result
 }
 
 fn normalize_load_time(ms: u64) -> f32 {
