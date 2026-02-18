@@ -22,8 +22,8 @@ Phase 3 (if adoption warrants): Consider joining CNCF or Linux Foundation.
 
 ## Contribution Entry Points
 
-Easiest: Write a custom extractor for a site category. Follow `docs/guides/writing-extractors.md`.
-Medium: Improve URL pattern classifiers for specific domains.
+Easiest: Add platform patterns to `runtime/src/acquisition/css_selectors.json` or `runtime/src/acquisition/platform_actions.json`. Write a custom browser extractor for a site category (see `docs/guides/writing-extractors.md`).
+Medium: Improve URL pattern classifiers for specific domains. Add new platform detection to the acquisition engine.
 Advanced: Core runtime improvements, new thin client languages, pathfinding optimizations.
 
 ## No Telemetry

@@ -1,5 +1,7 @@
 # TASKS.md — Sequential Build Checklist
 
+> **Note:** These tasks were for the initial v0.1.0 build. The architecture has since evolved — see `docs/06-no-browser-revolution.md` for the layered acquisition engine and `FINAL-PUSH.md` for pattern engine, HTTP actions, and HTTP authentication additions.
+
 > **Claude Code: Execute these tasks top to bottom. Do not skip. Do not ask for approval. Do not stop between tasks. Mark each `[x]` when done. Commit after each numbered task with message `T-XXX: description`. If a task fails, fix it before moving on.**
 
 ---

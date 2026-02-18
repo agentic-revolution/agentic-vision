@@ -153,8 +153,8 @@ pub fn extract_structured_data(html: &str, base_url: &str) -> StructuredData {
 
 /// Extract links from raw HTML as a simple list of internal URLs.
 ///
-/// Convenience function replacing `crawler::extract_links_from_html`
-/// for use by server.rs fallback code and mapper.
+/// Convenience function for extracting internal links from raw HTML,
+/// used by server.rs fallback code and mapper.
 pub fn extract_links_from_html(html: &str, base_url: &str) -> Vec<String> {
     let sd = extract_structured_data(html, base_url);
     sd.links

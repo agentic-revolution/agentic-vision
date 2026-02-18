@@ -1,12 +1,31 @@
 # Interactive Sessions: Multi-Step Flows with ACT
 
-Cortex supports persistent browser sessions for multi-step workflows
+Cortex supports persistent sessions for multi-step workflows
 like login, add-to-cart, and checkout.
 
 ## How Sessions Work
 
-A session holds a persistent browser context with cookies and state.
-Actions executed within a session share the same browser context.
+Many actions (add-to-cart, form submission, search) are executed via HTTP POST without a browser. For complex interactions (drag-drop, canvas, multi-step wizards), Cortex falls back to a browser context. Sessions hold cookies and state across multiple actions regardless of execution method.
+
+### HTTP-First Authentication
+
+Password-based login can be done entirely via HTTP:
+
+```python
+import cortex_client
+
+# Login via HTTP (no browser needed for standard login forms)
+session = cortex_client.login("shop.example.com", username="user@example.com", password="pw")
+
+# Map with authenticated session
+site = cortex_client.map("shop.example.com", session=session)
+```
+
+For OAuth login, a brief browser session is needed for the consent screen:
+
+```python
+session = cortex_client.login_oauth("shop.example.com", provider="google")
+```
 
 ## Python Example: Login Flow
 

@@ -16,11 +16,11 @@ cortex map example.com
 ```
 
 On first run, Cortex will automatically:
-1. Download Chromium for Testing (~130 MB)
-2. Start the background daemon
-3. Map the site
+1. Start the background daemon
+2. Map the site via HTTP-first layered acquisition (no browser needed)
+3. Download Chromium for Testing (~130 MB) only if browser fallback is needed
 
-Subsequent runs skip steps 1-2 and map immediately.
+Most sites are mapped entirely via HTTP. Chromium is downloaded on-demand for sites with very low structured data coverage or when using ACT operations.
 
 Output:
 ```

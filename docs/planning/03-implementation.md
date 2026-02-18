@@ -145,19 +145,30 @@ runtime/src/cartography/sitemap.rs       # parse sitemap.xml, sitemap index, RSS
 runtime/src/cartography/robots.rs        # parse robots.txt, extract crawl rules + sitemap URLs
 runtime/src/cartography/url_classifier.rs # classify URLs by pattern → PageType
 
-# Crawler
-runtime/src/cartography/crawler.rs       # parallel breadth-first crawler using browser pool
-runtime/src/cartography/sampler.rs       # smart sampling: choose which pages to render
+# Acquisition engine (HTTP-first data acquisition, replaces crawler/sampler/interpolator)
+runtime/src/acquisition/mod.rs             # layered acquisition orchestrator
+runtime/src/acquisition/http_client.rs      # async HTTP client (reqwest-based)
+runtime/src/acquisition/structured.rs       # JSON-LD, OpenGraph, meta tags, links, forms parser
+runtime/src/acquisition/head_scanner.rs     # parallel HEAD requests for metadata
+runtime/src/acquisition/feed_parser.rs      # RSS/Atom feed parser
+runtime/src/acquisition/api_discovery.rs    # detect and use public APIs
+runtime/src/acquisition/pattern_engine.rs   # CSS selector + regex extraction for sparse data
+runtime/src/acquisition/css_selectors.json  # CSS selector database (price, rating, availability)
+runtime/src/acquisition/action_discovery.rs # HTML form + JS endpoint + platform action discovery
+runtime/src/acquisition/js_analyzer.rs      # JavaScript source analysis for API endpoints
+runtime/src/acquisition/platform_actions.json # platform-specific action templates
+runtime/src/acquisition/http_session.rs     # HTTP session management with cookie jar
+runtime/src/acquisition/auth.rs             # HTTP authentication (password, OAuth, API key)
+
 runtime/src/cartography/rate_limiter.rs  # respect crawl-delay, max concurrent per domain
 
 # Feature extraction + encoding
-runtime/src/cartography/feature_encoder.rs  # raw DOM extraction → 128-float feature vector
+runtime/src/cartography/feature_encoder.rs  # StructuredData + DOM extraction → 128-float feature vector
 runtime/src/cartography/action_encoder.rs   # extracted actions → OpCode list
-runtime/src/cartography/page_classifier.rs  # DOM + URL + metadata → PageType
-runtime/src/cartography/interpolator.rs     # estimate features for unrendered pages
+runtime/src/cartography/page_classifier.rs  # structured data + URL + metadata → PageType
 
 # Map assembly
-runtime/src/cartography/mapper.rs        # orchestrate: sitemap + crawl + sample + encode → SiteMap
+runtime/src/cartography/mapper.rs        # orchestrate: acquisition layers + encode → SiteMap
                                           # this is the MAP protocol handler's core logic
 
 # Extraction scripts (TypeScript → compiled JS)
@@ -231,11 +242,11 @@ runtime/src/stealth/behavior.rs          # human-like delays
 
 ```
 runtime/src/intelligence/mod.rs
-runtime/src/intelligence/smart_sampler.rs    # ML-informed page sampling during mapping
-runtime/src/intelligence/interpolator.rs     # improved feature estimation for unrendered pages
 runtime/src/intelligence/progressive.rs      # background refinement after initial map delivery
 runtime/src/intelligence/cache.rs            # map caching: don't re-map fresh sites
 runtime/src/intelligence/cross_site.rs       # merge/compare maps from multiple domains
+# Note: smart_sampler.rs and interpolator.rs were removed in v0.2.0
+# Their functionality is now handled by the acquisition engine and pattern engine
 ```
 
 ### Phase 7: Framework Integrations
@@ -285,14 +296,11 @@ impl Mapper {
     /// Internal: classify URLs by pattern
     fn classify_urls(&self, urls: &[String]) -> Vec<(String, PageType, f32)>;
     
-    /// Internal: sample pages for rendering
-    fn select_samples(&self, classified: &[(String, PageType, f32)], max_render: usize) -> Vec<String>;
-    
-    /// Internal: render a page and extract features
-    async fn render_and_encode(&self, url: &str) -> Result<(NodeRecord, Vec<f32>, Vec<ActionRecord>, Vec<String>)>;
-    
-    /// Internal: interpolate features for unrendered pages
-    fn interpolate_features(&self, rendered: &HashMap<PageType, Vec<Vec<f32>>>, url: &str, page_type: PageType) -> Vec<f32>;
+    /// Internal: run layered acquisition (HTTP GET → structured data → pattern engine → API discovery)
+    async fn acquire_data(&self, urls: &[String]) -> Result<Vec<AcquiredPage>>;
+
+    /// Internal: render pages in browser (Layer 3 fallback for low-data pages)
+    async fn render_fallback(&self, urls: &[String]) -> Result<Vec<(NodeRecord, Vec<f32>, Vec<ActionRecord>, Vec<String>)>>;
     
     /// Internal: assemble the final SiteMap
     fn build_map(&self, domain: &str, nodes: Vec<NodeData>, edges: Vec<EdgeData>) -> SiteMap;

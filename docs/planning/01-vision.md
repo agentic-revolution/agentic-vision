@@ -21,7 +21,13 @@ The bottleneck isn't page loading. It's the LLM reading and reasoning at every s
 ```
 Agent says: "Map this site"
   ↓
-Cortex rapidly maps the ENTIRE site into a binary graph (2-5 seconds)
+Cortex maps the ENTIRE site via layered HTTP acquisition (1-4 seconds)
+  Layer 0: Sitemap + robots.txt + HEAD scan + feed discovery (HTTP only)
+  Layer 1: HTTP GET sample pages → parse JSON-LD / OpenGraph / meta tags
+  Layer 1.5: Pattern engine (CSS selectors) for pages with sparse structured data
+  Layer 2: API discovery for known platforms (Shopify, WooCommerce, etc.)
+  Layer 2.5: Action discovery — HTML forms + JS endpoints + platform templates
+  Layer 3: Browser render ONLY for pages where Layers 0-2.5 gave <20% data
   ↓
 Agent loads the graph into memory (30MB for a 50K-page site)
   ↓
@@ -29,8 +35,10 @@ Agent pathfinds/queries/filters the graph (microseconds, no LLM)
   ↓
 Agent visits 1-2 live pages to verify and act (1-2 seconds)
   ↓
-Done. Total: 3-7 seconds, 2 LLM calls (task parsing + response formatting)
+Done. Total: 2-6 seconds, 2 LLM calls (task parsing + response formatting)
 ```
+
+Most sites never need a browser during mapping. JSON-LD, OpenGraph, and CSS-selector-based extraction from raw HTML provide sufficient data for the graph. The browser is reserved for live actions (ACT) and pages with very low structured data coverage.
 
 ## The Chess Engine Analogy
 
@@ -48,9 +56,10 @@ import cortex
 # Step 0: LLM parses the task ONCE (only LLM call during browsing)
 goal = llm.parse("Sony WH-1000XM5, cheapest, across 5 sites")
 
-# Step 1: Map all 5 sites in parallel (~3 seconds)
+# Step 1: Map all 5 sites in parallel via HTTP (~2 seconds, no browser needed)
 maps = cortex.map_many(["amazon.com", "bestbuy.com", "walmart.com", "bhphoto.com", "newegg.com"])
 # → 5 SiteMap objects, ~150,000 nodes total, ~100MB in memory
+# → Structured data (JSON-LD, OpenGraph) + pattern engine extraction, no browser launched
 
 # Step 2: Query all maps (microseconds — no LLM, pure graph operations)
 candidates = []
@@ -81,46 +90,50 @@ answer = llm.format(verified, goal)
 
 ## Speed Comparison
 
-| System | Total Time | LLM Calls | Pages Visited Live | Decision Method |
-|--------|-----------|-----------|-------------------|-----------------|
-| OpenClaw-style | 20-35s | 10-15 | 8-12 (serial, blind) | LLM at every step |
-| Cortex | **3-7s** | **2** | **1-5 (verify only)** | **Graph pathfinding** |
+| System | Total Time | LLM Calls | Pages Visited Live | Browser for Mapping | Decision Method |
+|--------|-----------|-----------|-------------------|--------------------|-----------------|
+| OpenClaw-style | 20-35s | 10-15 | 8-12 (serial, blind) | Yes (every page) | LLM at every step |
+| Cortex v0.1 (browser) | 3-7s | 2 | 1-5 (verify only) | Yes (samples) | Graph pathfinding |
+| Cortex v0.2 (HTTP) | **2-6s** | **2** | **1-5 (verify only)** | **No (HTTP-first)** | **Graph pathfinding** |
 
 ## How Cortex Maps a Site
 
-Cortex doesn't render every page. It builds the graph intelligently:
+Cortex uses **layered acquisition** — each layer adds data via HTTP without a browser. The browser is a last-resort fallback.
 
-**Level 0 — Sitemap + robots.txt (instant, <200ms):**
-Most sites publish sitemap.xml. One HTTP request gives Cortex thousands of URLs. robots.txt reveals URL structure patterns.
+**Layer 0 — Metadata discovery (instant, <300ms):**
+Sitemap.xml, robots.txt, HEAD scan of discovered URLs, RSS/Atom feed discovery. All via plain HTTP. One sitemap request can yield thousands of URLs. HEAD scans filter to HTML-only pages efficiently.
 
-**Level 1 — URL pattern analysis (instant, <10ms):**
-URLs encode structure. `/dp/B0XXXXX` = product. `/s?k=query` = search results. `/gp/cart` = cart. Cortex classifies every URL by pattern without visiting it.
+**Layer 1 — Structured data extraction (0.5-2 seconds):**
+HTTP GET a diverse sample of pages (up to 30). Parse JSON-LD, OpenGraph, meta tags, and semantic HTML from the raw response. No rendering needed — structured data is in the HTML source. This provides page type, prices, ratings, availability, breadcrumbs, and links.
 
-**Level 2 — Sample rendering (2-5 seconds):**
-Cortex renders 50-200 sample pages (a few per URL pattern) in parallel browsers. Each sample provides: real feature vector, discovered links, action catalog, page type verification.
+**Layer 1.5 — Pattern engine fallback (included in Layer 1 time):**
+For pages where structured data covers less than 50% of features, the pattern engine applies CSS selectors from `css_selectors.json` to extract prices, ratings, titles, and other data directly from HTML.
 
-**Level 3 — Feature interpolation (instant):**
-For the thousands of pages NOT rendered, Cortex estimates feature vectors from the rendered samples. A rendered product page at $278 tells Cortex what product pages on this site look like. Unrendered product pages get estimated features with lower confidence.
+**Layer 2 — API discovery (0-500ms, optional):**
+For known platforms (Shopify, WooCommerce, Magento, BigCommerce), Cortex probes documented API endpoints to retrieve structured product/content data directly.
 
-**Level 4 — Progressive refinement (background):**
-After returning the initial map, Cortex keeps rendering more pages in the background. The map gets more accurate over time. The agent can refresh at any point.
+**Layer 2.5 — Action discovery (included in Layer 1 time):**
+HTML forms, JS endpoint patterns, and platform-specific action templates from `platform_actions.json` are analyzed to build the action catalog. Many actions (add-to-cart, search) can be executed via HTTP POST without a browser.
+
+**Layer 3 — Browser render (0-3 seconds, only if needed):**
+Pages where Layers 0-2.5 produced less than 20% data completeness are rendered in a headless browser. Typically fewer than 10% of sampled pages need this fallback.
 
 ### Mapping Times
 
-| Site Size | Sitemap | Sample Renders | Map Delivery | Quality |
-|-----------|---------|---------------|-------------|---------|
-| Small (100 pages) | Yes | 30 | <1s | Near-complete |
-| Medium (10K pages) | Yes | 100-200 | 1-3s | Skeleton + samples |
-| Large (100K+ pages) | Yes | 200-500 | 2-5s | Skeleton + samples + interpolation |
-| Any size | No | More sampling | 3-10s | Partial, expanding via progressive refinement |
+| Site Size | Sitemap | HTTP Samples | Browser Fallback | Map Delivery | Quality |
+|-----------|---------|-------------|-----------------|-------------|---------|
+| Small (100 pages) | Yes | 20-30 | 0-2 pages | <1s | Near-complete |
+| Medium (10K pages) | Yes | 30 | 0-5 pages | 1-2s | Skeleton + structured data |
+| Large (100K+ pages) | Yes | 30 | 0-10 pages | 2-4s | Skeleton + structured data + patterns |
+| Any size | No | 30 (crawled links) | 0-10 pages | 2-6s | Partial, expanding via progressive refinement |
 
 ## The Dynamic Problem
 
 Websites change. Prices update, stock fluctuates, pages appear and disappear. The map handles this through freshness scoring and targeted refresh:
 
-- Every node has a `freshness` score (0.0 = never rendered / stale, 1.0 = just rendered)
+- Every node has a `freshness` score (0.0 = never fetched / stale, 1.0 = just fetched)
 - The agent can filter by freshness: "only trust nodes with freshness > 0.7"
-- Targeted refresh: `cortex.refresh(map, cluster=ELECTRONICS)` re-renders only the relevant section
+- Targeted refresh: `cortex.refresh(map, cluster=ELECTRONICS)` re-fetches only the relevant section
 - Change detection: content hashes detect when a node's data has changed
 - Map caching: repeat visits to the same site reuse the cached map, refreshing only stale areas
 

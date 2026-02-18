@@ -9,6 +9,8 @@ COPY runtime/ .
 RUN cargo build --release
 
 FROM debian:bookworm-slim
+# Chromium is optional — only needed for browser fallback and ACT operations
+# Mapping works without it via HTTP-first layered acquisition
 RUN apt-get update && apt-get install -y chromium && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/release/cortex /usr/local/bin/
 ENV CORTEX_CHROMIUM_PATH=/usr/bin/chromium

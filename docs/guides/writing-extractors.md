@@ -1,7 +1,9 @@
 # Writing Custom Extractors
 
-Cortex uses TypeScript extractors that run inside the browser to
-extract structured data from web pages.
+Cortex uses TypeScript extractors that run inside the browser (Layer 3 fallback) to
+extract structured data from web pages. For HTTP-based extraction (the primary path),
+you can also contribute CSS selector patterns to `runtime/src/acquisition/css_selectors.json`
+and platform action templates to `runtime/src/acquisition/platform_actions.json`.
 
 ## Extractor Structure
 

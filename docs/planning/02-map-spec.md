@@ -65,7 +65,7 @@ NodeRecord {
 
 NodeFlags (uint8 bitfield):
   bit 0: rendered             // 1 if this page was actually rendered in a browser
-  bit 1: estimated            // 1 if features are interpolated, not extracted
+  bit 1: estimated            // 1 if features are from pattern engine or low-confidence extraction
   bit 2: stale                // 1 if freshness < 0.3
   bit 3: blocked              // 1 if bot detection prevented access
   bit 4: auth_required        // 1 if page requires authentication
@@ -548,6 +548,19 @@ Streaming (WATCH only):
 {"id": "r9", "result": {"version": "0.1.0", "uptime_s": 3421, "maps_cached": 3, "pool": {"active": 2, "max": 8, "memory_mb": 340}, "cache_mb": 47}}
 ```
 
+**AUTH** — Authenticate with a website
+```json
+// Password login (HTTP-only, no browser needed)
+{"id": "r10", "method": "auth", "params": {"domain": "shop.example.com", "auth_type": "password", "username": "user@example.com", "password": "..."}}
+{"id": "r10", "result": {"session_id": "sess_abc123", "domain": "shop.example.com", "auth_type": "password", "expires_at": "2026-02-18T03:00:00Z"}}
+
+// OAuth (brief browser session for consent)
+{"id": "r11", "method": "auth", "params": {"domain": "shop.example.com", "auth_type": "oauth", "provider": "google"}}
+
+// API key (no network call)
+{"id": "r12", "method": "auth", "params": {"domain": "api.example.com", "auth_type": "api_key", "key": "sk-...", "header_name": "X-Api-Key"}}
+```
+
 ## 6. Error Codes
 
 ```
@@ -575,6 +588,9 @@ E_PATHFIND_INVALID      Invalid node indices
 E_ACT_FAILED            Action execution failed
 E_ACT_BLOCKED           Action blocked by sandbox
 E_ACT_STALE             Page state changed since last refresh
+
+E_AUTH_FAILED           Authentication failed (bad credentials or form not found)
+E_AUTH_TIMEOUT          Authentication timed out (e.g. OAuth consent expired)
 
 E_POOL_EXHAUSTED        All browser contexts busy
 E_MEMORY_LIMIT          Memory limit reached

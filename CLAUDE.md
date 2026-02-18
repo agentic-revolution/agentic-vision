@@ -14,7 +14,7 @@ This is NOT a scraper. NOT a browser automation tool. NOT a perception-per-page 
 
 1. **Cortex is a standalone local process** written in Rust. Single binary. Agents connect via Unix domain socket.
 2. **Primary output is a SiteMap** — a binary graph data structure with nodes (pages), edges (links), feature vectors (128 floats per page), and action opcodes. Not JSON. Not text. Numbers.
-3. **Mapping is on-demand and fast.** `cortex.map("amazon.com")` maps the site in seconds using sitemap.xml + URL pattern analysis + sampled rendering + feature interpolation.
+3. **Mapping is on-demand and fast.** `cortex.map("amazon.com")` maps the site in seconds using layered HTTP acquisition: sitemap.xml + structured data extraction (JSON-LD, OpenGraph) + pattern engine (CSS selectors) + API/action discovery. Browser rendering is a last-resort fallback.
 4. **The agent works on the map, not the website.** Query, filter, pathfind — all in-memory graph operations, microseconds.
 5. **Live page visits are for verification and action only.** The agent visits 1-2 pages at the end, not dozens during exploration.
 6. **Thin client libraries** (Python, TypeScript, Rust, Go) connect to the local process via socket. ~200-500 lines each, zero dependencies.

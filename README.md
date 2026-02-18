@@ -28,21 +28,22 @@ No manual setup needed. `cortex map` handles Chromium installation and daemon li
 
 ## How It Works
 
-1. **Map** — Cortex crawls a domain, renders sample pages with headless Chromium, extracts structured data, and encodes every page into a 128-dimension feature vector. Unrendered pages are interpolated from rendered samples.
+1. **Map** — Cortex maps a domain via layered HTTP acquisition: sitemap/robots.txt discovery, HTTP GET with JSON-LD/OpenGraph extraction, CSS-selector pattern engine, and platform API discovery. Each page is encoded into a 128-dimension feature vector. **No browser needed for mapping** — browser is a last-resort fallback for the ~5% of pages with no structured data.
 
 2. **Navigate** — Query the map by page type, feature ranges, or vector similarity. Pathfind between any two nodes using Dijkstra's algorithm on the edge graph.
 
-3. **Act** — Execute actions on live pages (click buttons, fill forms, add to cart) through persistent browser sessions with cookie state.
+3. **Act** — Execute actions on live pages. Many actions (add-to-cart, search, form submission) work via HTTP POST. Complex interactions (drag-drop, canvas) fall back to browser sessions.
 
 ## Architecture
 
 ```
 Agent  ──→  Client (Python/TS)  ──→  Unix Socket  ──→  Cortex Runtime
+                                                          ├── Acquisition Engine (HTTP-first)
                                                           ├── Cartography Engine
                                                           ├── Navigation Engine
                                                           ├── Live Interaction
                                                           ├── Intelligence Layer
-                                                          └── Chromium Pool
+                                                          └── Chromium Pool (fallback only)
 ```
 
 ## Feature Vector (128 dimensions)
@@ -79,7 +80,8 @@ cortex/
 ├── runtime/          # Rust runtime (the core)
 │   └── src/
 │       ├── map/          # SiteMap types, builder, serializer, reader
-│       ├── cartography/  # Crawling, classification, encoding
+│       ├── acquisition/  # HTTP-first data acquisition (JSON-LD, patterns, actions)
+│       ├── cartography/  # Classification, feature encoding, mapping
 │       ├── navigation/   # Query, pathfind, similarity, clustering
 │       ├── live/         # Perceive, refresh, act, watch, sessions
 │       ├── intelligence/ # Caching, progressive refinement
@@ -117,7 +119,7 @@ See [docs/LIMITATIONS.md](docs/LIMITATIONS.md) for an honest list of current lim
 
 ## Contributing
 
-See [docs/guides/writing-extractors.md](docs/guides/writing-extractors.md) for how to write custom extractors.
+See [docs/guides/writing-extractors.md](docs/guides/writing-extractors.md) for how to write custom extractors. You can also contribute platform patterns to `runtime/src/acquisition/css_selectors.json` and `runtime/src/acquisition/platform_actions.json`.
 
 ## License
 
