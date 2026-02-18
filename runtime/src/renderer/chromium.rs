@@ -76,14 +76,24 @@ impl ChromiumRenderer {
     pub async fn new() -> Result<Self> {
         let chrome_path = find_chromium().context("Chromium not found. Run `cortex install`.")?;
 
+        tracing::info!("launching Chromium at {}", chrome_path.display());
+
+        // Use a separate user data dir so headless Chrome doesn't conflict
+        // with any running Chrome instance.
+        let data_dir = std::env::temp_dir().join("cortex-chromium-profile");
+        std::fs::create_dir_all(&data_dir).ok();
+
         let config = BrowserConfig::builder()
             .chrome_executable(chrome_path)
-            .arg("--headless=new")
+            .arg("--headless")
             .arg("--disable-gpu")
             .arg("--no-sandbox")
             .arg("--disable-dev-shm-usage")
             .arg("--disable-extensions")
             .arg("--disable-background-networking")
+            .arg("--disable-features=TranslateUI")
+            .arg("--remote-debugging-port=0")
+            .arg(format!("--user-data-dir={}", data_dir.display()))
             .build()
             .map_err(|e| anyhow::anyhow!("failed to build browser config: {e}"))?;
 
