@@ -5,6 +5,9 @@ edition = "2021"
 license = "Apache-2.0"
 description = "Rapid web cartographer for AI agents"
 repository = "https://github.com/cortex-ai/cortex"
+readme = "../README.md"
+keywords = ["web", "cartography", "agent", "mcp", "navigation"]
+categories = ["web-programming", "command-line-utilities"]
 
 [[bin]]
 name = "cortex"
