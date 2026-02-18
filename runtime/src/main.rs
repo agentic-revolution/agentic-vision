@@ -29,7 +29,7 @@ mod trust;
     name = "cortex",
     about = "Cortex — Rapid web cartographer for AI agents",
     version,
-    after_help = "Run 'cortex <command> --help' for details on each command."
+    after_help = "Run 'cortex <command> --help' for details on each command.\nRun 'cortex' with no command to enter interactive mode."
 )]
 struct Cli {
     /// Output results as JSON (machine-readable)
@@ -49,7 +49,7 @@ struct Cli {
     no_color: bool,
 
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
@@ -188,26 +188,29 @@ async fn main() -> Result<()> {
     }
 
     let result = match cli.command {
-        Commands::Start { http_port } => cli::start::run_with_http(http_port).await,
-        Commands::Stop => cli::stop::run().await,
-        Commands::Restart => cli::restart_cmd::run().await,
-        Commands::Doctor => cli::doctor::run().await,
-        Commands::Status => cli::status::run().await,
-        Commands::Map {
+        // No subcommand → launch interactive REPL
+        None => cli::repl::run().await,
+
+        Some(Commands::Start { http_port }) => cli::start::run_with_http(http_port).await,
+        Some(Commands::Stop) => cli::stop::run().await,
+        Some(Commands::Restart) => cli::restart_cmd::run().await,
+        Some(Commands::Doctor) => cli::doctor::run().await,
+        Some(Commands::Status) => cli::status::run().await,
+        Some(Commands::Map {
             domain,
             max_nodes,
             max_render,
             timeout,
             fresh,
-        } => cli::map_cmd::run(&domain, max_nodes, max_render, timeout, fresh).await,
-        Commands::Query {
+        }) => cli::map_cmd::run(&domain, max_nodes, max_render, timeout, fresh).await,
+        Some(Commands::Query {
             domain,
             page_type,
             price_lt,
             rating_gt,
             feature_filters,
             limit,
-        } => {
+        }) => {
             cli::query_cmd::run(
                 &domain,
                 page_type.as_deref(),
@@ -218,24 +221,26 @@ async fn main() -> Result<()> {
             )
             .await
         }
-        Commands::Pathfind { domain, from, to } => cli::pathfind_cmd::run(&domain, from, to).await,
-        Commands::Perceive { url, format } => cli::perceive_cmd::run(&url, &format).await,
-        Commands::Install { force } => cli::install_cmd::run_with_force(force).await,
-        Commands::Cache { action } => match action {
+        Some(Commands::Pathfind { domain, from, to }) => {
+            cli::pathfind_cmd::run(&domain, from, to).await
+        }
+        Some(Commands::Perceive { url, format }) => cli::perceive_cmd::run(&url, &format).await,
+        Some(Commands::Install { force }) => cli::install_cmd::run_with_force(force).await,
+        Some(Commands::Cache { action }) => match action {
             CacheAction::Clear { domain } => cli::cache_cmd::run_clear(domain.as_deref()).await,
         },
-        Commands::Completions { shell } => {
+        Some(Commands::Completions { shell }) => {
             let mut cmd = Cli::command();
             clap_complete::generate(shell, &mut cmd, "cortex", &mut std::io::stdout());
             Ok(())
         }
-        Commands::Plug {
+        Some(Commands::Plug {
             list,
             remove,
             status,
             agent,
             config_dir,
-        } => {
+        }) => {
             cli::plug::run(
                 list,
                 remove,
