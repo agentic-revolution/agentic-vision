@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cortex-semantic-kernel"
+version = "0.3.2"
+description = "Semantic Kernel plugin for Cortex web cartography"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.10"
+dependencies = [
+    "cortex-client>=0.1.0",
+    "semantic-kernel>=0.9.0",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+]
+
+[project.urls]
+Homepage = "https://github.com/cortex-ai/cortex"
+
+[tool.setuptools.packages.find]
+include = ["cortex_semantic_kernel*"]
