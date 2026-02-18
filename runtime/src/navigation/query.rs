@@ -75,7 +75,9 @@ mod tests {
         };
         let results = execute(&map, &query);
         assert_eq!(results.len(), 5);
-        assert!(results.iter().all(|r| r.page_type == PageType::ProductDetail));
+        assert!(results
+            .iter()
+            .all(|r| r.page_type == PageType::ProductDetail));
     }
 
     #[test]

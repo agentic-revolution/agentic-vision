@@ -27,7 +27,7 @@ impl RateLimiter {
 
     /// Create a rate limiter from robots.txt crawl delay.
     pub fn from_crawl_delay(crawl_delay: Option<f32>, max_concurrent: usize) -> Self {
-        let delay_ms = crawl_delay.map(|d| (d * 1000.0) as u64).unwrap_or(100);
+        let delay_ms = crawl_delay.map(|d| (d * 1000.0) as u64).unwrap_or(50);
         Self::new(max_concurrent, delay_ms)
     }
 

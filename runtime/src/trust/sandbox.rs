@@ -3,15 +3,13 @@
 use regex::Regex;
 use std::sync::LazyLock;
 
-static SCRIPT_TAG_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?i)<script[\s>]").unwrap());
+static SCRIPT_TAG_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)<script[\s>]").unwrap());
 
 static SQL_INJECTION_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)(\b(union|select|insert|update|delete|drop|alter|exec)\b.*\b(from|into|table|where)\b)|(--)|(;.*\b(drop|delete|update)\b)").unwrap()
 });
 
-static PATH_TRAVERSAL_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\.\./|\.\.\\").unwrap());
+static PATH_TRAVERSAL_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\.\./|\.\.\\").unwrap());
 
 static EVENT_HANDLER_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)\bon\w+\s*=").unwrap());

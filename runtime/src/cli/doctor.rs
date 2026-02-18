@@ -121,9 +121,7 @@ pub async fn run() -> Result<()> {
                         suggest_shared_libs();
                     }
                     if is_docker() {
-                        output::print_detail(
-                            "Running in Docker? Try CORTEX_CHROMIUM_NO_SANDBOX=1",
-                        );
+                        output::print_detail("Running in Docker? Try CORTEX_CHROMIUM_NO_SANDBOX=1");
                     }
                     ready = false;
                 }
@@ -150,9 +148,7 @@ pub async fn run() -> Result<()> {
                 "C library:",
                 "musl libc detected (Alpine Linux)",
             );
-            output::print_detail(
-                "Chromium does not run natively on musl. Install gcompat:",
-            );
+            output::print_detail("Chromium does not run natively on musl. Install gcompat:");
             output::print_detail("  apk add gcompat");
         }
     }
@@ -212,11 +208,7 @@ pub async fn run() -> Result<()> {
             output::print_check(s.fail_sym(), "Process:", "not running");
         }
         ProcessStatus::SocketConflict => {
-            output::print_check(
-                s.fail_sym(),
-                "Process:",
-                "socket in use by another process",
-            );
+            output::print_check(s.fail_sym(), "Process:", "socket in use by another process");
             output::print_detail(&format!("Another process is listening on {SOCKET_PATH}"));
             output::print_detail("Remove the socket file or choose a different path.");
             ready = false;
@@ -276,11 +268,9 @@ pub async fn run() -> Result<()> {
 
     // 13. Python
     match check_tool_version("python3", &["--version"]) {
-        Some(ver) => output::print_check(
-            s.ok_sym(),
-            "Python:",
-            &format!("{ver} (for cortex-client)"),
-        ),
+        Some(ver) => {
+            output::print_check(s.ok_sym(), "Python:", &format!("{ver} (for cortex-client)"))
+        }
         None => output::print_check(
             s.info_sym(),
             "Python:",
@@ -414,8 +404,7 @@ pub fn find_chromium() -> Option<PathBuf> {
 
     // 4. Common macOS locations
     if cfg!(target_os = "macos") {
-        let common =
-            PathBuf::from("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome");
+        let common = PathBuf::from("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome");
         if common.exists() {
             return Some(common);
         }
@@ -476,27 +465,24 @@ fn get_memory_mb() -> (Option<u64>, Option<u64>) {
             })
             .map(|b| b / 1_048_576);
 
-        let avail = Command::new("vm_stat")
-            .output()
-            .ok()
-            .and_then(|o| {
-                let s = String::from_utf8_lossy(&o.stdout);
-                let mut free = 0u64;
-                for line in s.lines() {
-                    if line.starts_with("Pages free") || line.starts_with("Pages inactive") {
-                        if let Some(val) = line.split(':').nth(1) {
-                            if let Ok(n) = val.trim().trim_end_matches('.').parse::<u64>() {
-                                free += n * 4096;
-                            }
+        let avail = Command::new("vm_stat").output().ok().and_then(|o| {
+            let s = String::from_utf8_lossy(&o.stdout);
+            let mut free = 0u64;
+            for line in s.lines() {
+                if line.starts_with("Pages free") || line.starts_with("Pages inactive") {
+                    if let Some(val) = line.split(':').nth(1) {
+                        if let Ok(n) = val.trim().trim_end_matches('.').parse::<u64>() {
+                            free += n * 4096;
                         }
                     }
                 }
-                if free > 0 {
-                    Some(free / 1_048_576)
-                } else {
-                    total
-                }
-            });
+            }
+            if free > 0 {
+                Some(free / 1_048_576)
+            } else {
+                total
+            }
+        });
 
         (total, avail)
     }
@@ -614,9 +600,7 @@ fn check_process_status(pid_path: &PathBuf, socket_path: &str) -> ProcessStatus 
 fn is_process_alive(pid: i32) -> bool {
     #[cfg(unix)]
     {
-        let output = Command::new("kill")
-            .args(["-0", &pid.to_string()])
-            .output();
+        let output = Command::new("kill").args(["-0", &pid.to_string()]).output();
         matches!(output, Ok(o) if o.status.success())
     }
     #[cfg(not(unix))]

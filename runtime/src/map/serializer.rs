@@ -42,7 +42,8 @@ impl SiteMap {
     /// Serialize the SiteMap to binary CTX format with trailing CRC32 checksum.
     pub fn serialize(&self) -> Vec<u8> {
         let mut buf = Vec::new();
-        self.write_to(&mut buf).expect("serialization to Vec should not fail");
+        self.write_to(&mut buf)
+            .expect("serialization to Vec should not fail");
 
         // Append CRC32 checksum of all preceding bytes
         let checksum = crc32(&buf);

@@ -63,8 +63,8 @@ fn load_vault_key() -> Result<Vec<u8>> {
 impl CredentialVault {
     /// Open or create a credential vault.
     pub fn open(path: &PathBuf) -> Result<Self> {
-        let db =
-            Connection::open(path).with_context(|| format!("failed to open vault: {}", path.display()))?;
+        let db = Connection::open(path)
+            .with_context(|| format!("failed to open vault: {}", path.display()))?;
 
         db.execute_batch(
             "CREATE TABLE IF NOT EXISTS credentials (
@@ -120,9 +120,9 @@ impl CredentialVault {
 
     /// Retrieve credentials for a domain.
     pub fn retrieve(&self, domain: &str) -> Result<Option<(String, String)>> {
-        let mut stmt = self.db.prepare(
-            "SELECT username, encrypted_password FROM credentials WHERE domain = ?1",
-        )?;
+        let mut stmt = self
+            .db
+            .prepare("SELECT username, encrypted_password FROM credentials WHERE domain = ?1")?;
 
         let result = stmt.query_row(rusqlite::params![domain], |row| {
             let username: String = row.get(0)?;
@@ -150,7 +150,9 @@ impl CredentialVault {
 
     /// List all domains with stored credentials.
     pub fn list_domains(&self) -> Result<Vec<String>> {
-        let mut stmt = self.db.prepare("SELECT domain FROM credentials ORDER BY domain")?;
+        let mut stmt = self
+            .db
+            .prepare("SELECT domain FROM credentials ORDER BY domain")?;
         let domains = stmt
             .query_map([], |row| row.get(0))?
             .collect::<Result<Vec<String>, _>>()?;

@@ -7,6 +7,7 @@ use anyhow::Result;
 use clap::{CommandFactory, Parser, Subcommand};
 use clap_complete::Shell;
 
+mod acquisition;
 mod audit;
 mod cartography;
 mod cli;
@@ -194,15 +195,11 @@ async fn main() -> Result<()> {
             )
             .await
         }
-        Commands::Pathfind { domain, from, to } => {
-            cli::pathfind_cmd::run(&domain, from, to).await
-        }
+        Commands::Pathfind { domain, from, to } => cli::pathfind_cmd::run(&domain, from, to).await,
         Commands::Perceive { url, format } => cli::perceive_cmd::run(&url, &format).await,
         Commands::Install { force } => cli::install_cmd::run_with_force(force).await,
         Commands::Cache { action } => match action {
-            CacheAction::Clear { domain } => {
-                cli::cache_cmd::run_clear(domain.as_deref()).await
-            }
+            CacheAction::Clear { domain } => cli::cache_cmd::run_clear(domain.as_deref()).await,
         },
         Commands::Completions { shell } => {
             let mut cmd = Cli::command();

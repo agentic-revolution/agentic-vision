@@ -55,10 +55,7 @@ pub async fn run_with_force(force: bool) -> Result<()> {
         eprintln!("  Target:    {}", chromium_dir.display());
         eprintln!();
         // TODO: Implement actual download from Chrome for Testing
-        eprintln!(
-            "  {} Download not yet implemented.",
-            s.warn_sym()
-        );
+        eprintln!("  {} Download not yet implemented.", s.warn_sym());
         eprintln!("  Please manually install Chromium and set CORTEX_CHROMIUM_PATH.");
         eprintln!();
         eprintln!("  Options:");

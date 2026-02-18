@@ -19,7 +19,10 @@ pub struct ContextHandle {
 impl ContextHandle {
     /// Get a reference to the render context.
     pub fn context(&self) -> &dyn RenderContext {
-        self.context.as_ref().expect("context already taken").as_ref()
+        self.context
+            .as_ref()
+            .expect("context already taken")
+            .as_ref()
     }
 
     /// Get a mutable reference to the render context.

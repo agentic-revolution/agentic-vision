@@ -29,10 +29,16 @@ pub async fn run(domain: &str, from: u32, to: u32) -> Result<()> {
     // Validate node indices
     let max_node = map.nodes.len() as u32;
     if from >= max_node {
-        bail!("Source node {from} doesn't exist in this map (max: {}).", max_node - 1);
+        bail!(
+            "Source node {from} doesn't exist in this map (max: {}).",
+            max_node - 1
+        );
     }
     if to >= max_node {
-        bail!("Target node {to} doesn't exist in this map (max: {}).", max_node - 1);
+        bail!(
+            "Target node {to} doesn't exist in this map (max: {}).",
+            max_node - 1
+        );
     }
 
     let constraints = PathConstraints::default();
@@ -103,10 +109,7 @@ pub async fn run(domain: &str, from: u32, to: u32) -> Result<()> {
                     } else {
                         "  "
                     };
-                    eprintln!(
-                        "    [{node_idx:>5}] {:?} {url}{arrow}",
-                        node.page_type
-                    );
+                    eprintln!("    [{node_idx:>5}] {:?} {url}{arrow}", node.page_type);
                 }
 
                 if !path.required_actions.is_empty() {
@@ -123,12 +126,8 @@ pub async fn run(domain: &str, from: u32, to: u32) -> Result<()> {
         }
         None => {
             if !output::is_quiet() {
-                eprintln!(
-                    "  No path found from node {from} to node {to}."
-                );
-                eprintln!(
-                    "  Try relaxing constraints or checking that both nodes are connected."
-                );
+                eprintln!("  No path found from node {from} to node {to}.");
+                eprintln!("  Try relaxing constraints or checking that both nodes are connected.");
             }
         }
     }

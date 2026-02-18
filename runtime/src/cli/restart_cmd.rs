@@ -5,7 +5,6 @@ use anyhow::Result;
 
 /// Restart the Cortex daemon by stopping and starting.
 pub async fn run() -> Result<()> {
-
     if !output::is_quiet() {
         eprintln!("  Restarting Cortex...");
     }

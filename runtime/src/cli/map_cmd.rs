@@ -8,7 +8,13 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 /// Run the map command.
-pub async fn run(domain: &str, max_nodes: u32, max_render: u32, timeout: u64, fresh: bool) -> Result<()> {
+pub async fn run(
+    domain: &str,
+    max_nodes: u32,
+    max_render: u32,
+    timeout: u64,
+    fresh: bool,
+) -> Result<()> {
     let s = Styled::new();
     let start = Instant::now();
 
@@ -32,9 +38,7 @@ pub async fn run(domain: &str, max_nodes: u32, max_render: u32, timeout: u64, fr
                     .and_then(|t| t.elapsed().ok())
                     .map(|d| output::format_duration(d.as_secs()))
                     .unwrap_or_else(|| "unknown".to_string());
-                eprintln!(
-                    "  Using cached map ({age} old). Use --fresh to re-map."
-                );
+                eprintln!("  Using cached map ({age} old). Use --fresh to re-map.");
                 eprintln!();
             }
 
@@ -54,29 +58,116 @@ pub async fn run(domain: &str, max_nodes: u32, max_render: u32, timeout: u64, fr
         eprintln!();
     }
 
-    if output::is_json() {
-        output::print_json(&serde_json::json!({
-            "status": "daemon_required",
-            "message": "Map command requires a running Cortex daemon with browser pool",
-            "hint": "Start with: cortex start"
-        }));
+    // Connect to the daemon socket and send a MAP request
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::UnixStream;
+
+    let socket_path = "/tmp/cortex.sock";
+    let mut stream = match UnixStream::connect(socket_path).await {
+        Ok(s) => s,
+        Err(_) => {
+            if output::is_json() {
+                output::print_json(&serde_json::json!({
+                    "status": "daemon_required",
+                    "message": "Cannot connect to Cortex daemon",
+                    "hint": "Start with: cortex start"
+                }));
+            } else if !output::is_quiet() {
+                eprintln!("  Cannot connect to Cortex daemon.");
+                eprintln!("  Start the daemon with: cortex start");
+            }
+            return Ok(());
+        }
+    };
+
+    let req = serde_json::json!({
+        "id": format!("map-{}", std::process::id()),
+        "method": "map",
+        "params": {
+            "domain": domain,
+            "max_nodes": max_nodes,
+            "max_render": max_render,
+            "max_time_ms": timeout,
+            "respect_robots": true,
+        }
+    });
+    let req_str = format!("{}\n", req);
+    stream
+        .write_all(req_str.as_bytes())
+        .await
+        .context("failed to send MAP request")?;
+
+    // Read response (with generous timeout for mapping)
+    let mut buf = vec![0u8; 1024 * 1024]; // 1MB buffer
+    let response_timeout = std::time::Duration::from_millis(timeout + 30000);
+    let n = match tokio::time::timeout(response_timeout, stream.read(&mut buf)).await {
+        Ok(Ok(n)) if n > 0 => n,
+        Ok(Ok(_)) => {
+            if !output::is_quiet() {
+                eprintln!("  Connection closed by server.");
+            }
+            return Ok(());
+        }
+        Ok(Err(e)) => {
+            if !output::is_quiet() {
+                eprintln!("  Read error: {e}");
+            }
+            return Ok(());
+        }
+        Err(_) => {
+            if !output::is_quiet() {
+                eprintln!("  Mapping timed out after {}ms.", timeout + 30000);
+            }
+            return Ok(());
+        }
+    };
+
+    let response: serde_json::Value =
+        serde_json::from_slice(&buf[..n]).context("failed to parse response")?;
+
+    if let Some(error) = response.get("error") {
+        if output::is_json() {
+            output::print_json(&response);
+        } else if !output::is_quiet() {
+            let msg = error
+                .get("message")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown error");
+            eprintln!("  Mapping failed: {msg}");
+        }
         return Ok(());
     }
 
-    // TODO: When browser pool is wired up, perform actual mapping here.
-    if !output::is_quiet() {
-        eprintln!(
-            "  Map command requires a running Cortex daemon with browser pool."
-        );
-        eprintln!("  Start the daemon with: cortex start");
-        eprintln!("  Then run: cortex map {domain}");
-        eprintln!();
+    let result = response.get("result").cloned().unwrap_or_default();
+    let node_count = result
+        .get("node_count")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as u32;
+    let edge_count = result
+        .get("edge_count")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0) as u32;
 
-        if output::is_verbose() {
-            eprintln!("  Configuration:");
-            eprintln!("    max_nodes:  {max_nodes}");
-            eprintln!("    max_render: {max_render}");
-            eprintln!("    timeout:    {timeout}ms");
+    if output::is_json() {
+        output::print_json(&result);
+        return Ok(());
+    }
+
+    if !output::is_quiet() {
+        let elapsed = start.elapsed();
+        eprintln!("  Map complete in {:.1}s", elapsed.as_secs_f64());
+        eprintln!();
+        eprintln!("  {}", s.bold(domain));
+        eprintln!("  Nodes:     {node_count}");
+        eprintln!("  Edges:     {edge_count}");
+        eprintln!();
+        eprintln!("  Query with: cortex query {domain} --type product_detail");
+    }
+
+    // Cache the map binary if available
+    if let Some(map_path) = result.get("map_path").and_then(|v| v.as_str()) {
+        if !output::is_quiet() {
+            eprintln!("  Cached at: {map_path}");
         }
     }
 
@@ -101,13 +192,7 @@ fn print_map_stats(s: &Styled, map: &SiteMap, elapsed: std::time::Duration) {
 
     eprintln!("  Map complete in {:.1}s", elapsed.as_secs_f64());
     eprintln!();
-    eprintln!(
-        "  {}",
-        s.bold(&format!(
-            "{:<45}",
-            map.header.domain
-        ))
-    );
+    eprintln!("  {}", s.bold(&format!("{:<45}", map.header.domain)));
     eprintln!(
         "  Nodes:     {} ({} rendered, {} estimated)",
         total_nodes, rendered, estimated
@@ -132,7 +217,10 @@ fn print_map_stats(s: &Styled, map: &SiteMap, elapsed: std::time::Duration) {
     }
 
     eprintln!();
-    eprintln!("  Query with: cortex query {} --type product_detail", map.header.domain);
+    eprintln!(
+        "  Query with: cortex query {} --type product_detail",
+        map.header.domain
+    );
 }
 
 /// Print map stats as JSON.
@@ -203,10 +291,7 @@ async fn auto_setup_if_needed() -> Result<bool> {
                 eprintln!("  [2/2] Starting Cortex process...");
             } else {
                 let s = Styled::new();
-                eprintln!(
-                    "  {} Cortex is not running. Starting...",
-                    s.info_sym()
-                );
+                eprintln!("  {} Cortex is not running. Starting...", s.info_sym());
             }
         }
         match crate::cli::start::run().await {

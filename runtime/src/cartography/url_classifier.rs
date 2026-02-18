@@ -23,10 +23,7 @@ pub fn classify_url(url: &str, _domain: &str) -> (PageType, f32) {
     }
 
     // Search
-    if path.contains("/search")
-        || path.contains("/s?")
-        || path.starts_with("/s/")
-    {
+    if path.contains("/search") || path.contains("/s?") || path.starts_with("/s/") {
         return (PageType::SearchResults, 0.8);
     }
 
@@ -115,10 +112,7 @@ pub fn classify_url(url: &str, _domain: &str) -> (PageType, f32) {
     if path.contains("/download") {
         return (PageType::DownloadPage, 0.8);
     }
-    if path.ends_with(".pdf")
-        || path.ends_with(".zip")
-        || path.ends_with(".tar.gz")
-    {
+    if path.ends_with(".pdf") || path.ends_with(".zip") || path.ends_with(".tar.gz") {
         return (PageType::DownloadPage, 0.9);
     }
 
@@ -152,7 +146,10 @@ pub fn classify_url(url: &str, _domain: &str) -> (PageType, f32) {
 
 fn extract_path(url: &str) -> &str {
     // Simple path extraction without parsing the full URL
-    if let Some(rest) = url.strip_prefix("https://").or_else(|| url.strip_prefix("http://")) {
+    if let Some(rest) = url
+        .strip_prefix("https://")
+        .or_else(|| url.strip_prefix("http://"))
+    {
         if let Some(slash_pos) = rest.find('/') {
             return &rest[slash_pos..];
         }
@@ -167,7 +164,10 @@ mod tests {
 
     #[test]
     fn test_classify_urls() {
-        assert_eq!(classify_url("https://amazon.com/", "amazon.com").0, PageType::Home);
+        assert_eq!(
+            classify_url("https://amazon.com/", "amazon.com").0,
+            PageType::Home
+        );
         assert_eq!(
             classify_url("https://amazon.com/dp/B0EXAMPLE", "amazon.com").0,
             PageType::ProductDetail

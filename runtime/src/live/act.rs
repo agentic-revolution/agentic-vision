@@ -175,7 +175,7 @@ fn sanitize_js_string(s: &str) -> String {
             '\n' => result.push_str("\\n"),
             '\r' => result.push_str("\\r"),
             '\t' => result.push_str("\\t"),
-            '\0' => {} // Strip null bytes
+            '\0' => {}                       // Strip null bytes
             '<' => result.push_str("\\x3c"), // Prevent </script> injection
             '>' => result.push_str("\\x3e"),
             _ => result.push(ch),

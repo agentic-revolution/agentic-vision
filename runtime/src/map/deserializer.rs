@@ -47,12 +47,12 @@ impl SiteMap {
 
         let format_version = r.read_u16::<LittleEndian>().context("reading version")?;
         if format_version != FORMAT_VERSION {
-            bail!(
-                "unsupported format version: expected {FORMAT_VERSION}, got {format_version}"
-            );
+            bail!("unsupported format version: expected {FORMAT_VERSION}, got {format_version}");
         }
 
-        let domain_length = r.read_u16::<LittleEndian>().context("reading domain length")? as usize;
+        let domain_length = r
+            .read_u16::<LittleEndian>()
+            .context("reading domain length")? as usize;
         let mut domain_bytes = vec![0u8; domain_length];
         std::io::Read::read_exact(&mut r, &mut domain_bytes).context("reading domain")?;
         let domain = String::from_utf8(domain_bytes).context("domain not valid utf8")?;
@@ -60,7 +60,9 @@ impl SiteMap {
         let mapped_at = r.read_u64::<LittleEndian>().context("reading mapped_at")?;
         let node_count = r.read_u32::<LittleEndian>().context("reading node_count")? as usize;
         let edge_count = r.read_u32::<LittleEndian>().context("reading edge_count")? as usize;
-        let cluster_count = r.read_u16::<LittleEndian>().context("reading cluster_count")? as usize;
+        let cluster_count = r
+            .read_u16::<LittleEndian>()
+            .context("reading cluster_count")? as usize;
         let flags = r.read_u16::<LittleEndian>().context("reading flags")?;
 
         // ─── Node Table ───────────────────────────────────

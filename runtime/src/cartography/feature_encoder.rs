@@ -10,6 +10,8 @@
 //! - Price ranges ("$200–$350"): low end stored in `features[48]`.
 //! - Text ratings ("Excellent"): mapped to numeric 0.0–1.0.
 
+use crate::acquisition::http_client::HeadResponse;
+use crate::acquisition::structured::StructuredData;
 use crate::extraction::loader::ExtractionResult;
 use crate::map::types::*;
 use crate::renderer::NavigationResult;
@@ -50,7 +52,11 @@ pub fn encode_features_with_flags(
     feats[FEAT_PAGE_TYPE] = (page_type as u8) as f32 / 31.0;
     feats[FEAT_PAGE_TYPE_CONFIDENCE] = confidence;
     feats[FEAT_LOAD_TIME] = normalize_load_time(nav_result.load_time_ms);
-    feats[FEAT_IS_HTTPS] = if url.starts_with("https://") { 1.0 } else { 0.0 };
+    feats[FEAT_IS_HTTPS] = if url.starts_with("https://") {
+        1.0
+    } else {
+        0.0
+    };
     feats[FEAT_URL_PATH_DEPTH] = count_path_depth(url) as f32 / 10.0;
     feats[FEAT_URL_HAS_QUERY] = if url.contains('?') { 1.0 } else { 0.0 };
     feats[FEAT_URL_HAS_FRAGMENT] = if url.contains('#') { 1.0 } else { 0.0 };
@@ -59,21 +65,14 @@ pub fn encode_features_with_flags(
     feats[FEAT_REDIRECT_COUNT] = nav_result.redirect_chain.len() as f32 / 5.0;
 
     // ── Content Metrics (16-47) ──
-    let has_form = encode_content_features(
-        &extraction.content,
-        &extraction.structure,
-        &mut feats,
-    );
+    let has_form = encode_content_features(&extraction.content, &extraction.structure, &mut feats);
     if has_form {
         flag_bits |= NodeFlags::HAS_FORM;
     }
 
     // ── Commerce Features (48-63) ──
-    let (has_price, has_media_from_commerce) = encode_commerce_features(
-        &extraction.content,
-        &extraction.metadata,
-        &mut feats,
-    );
+    let (has_price, has_media_from_commerce) =
+        encode_commerce_features(&extraction.content, &extraction.metadata, &mut feats);
     if has_price {
         flag_bits |= NodeFlags::HAS_PRICE;
     }
@@ -82,17 +81,18 @@ pub fn encode_features_with_flags(
     encode_navigation_features(&extraction.navigation, &extraction.structure, &mut feats);
 
     // ── Trust & Safety (80-95) ──
-    feats[FEAT_TLS_VALID] = if url.starts_with("https://") { 1.0 } else { 0.0 };
+    feats[FEAT_TLS_VALID] = if url.starts_with("https://") {
+        1.0
+    } else {
+        0.0
+    };
     feats[FEAT_CONTENT_FRESHNESS] = 1.0; // Just mapped, so fresh
 
     // ── Action Features (96-111) ──
     encode_action_features(&extraction.actions, &mut feats);
 
     // Check for media (video or many images)
-    if has_media_from_commerce
-        || feats[FEAT_VIDEO_PRESENT] > 0.0
-        || feats[FEAT_IMAGE_COUNT] > 0.3
-    {
+    if has_media_from_commerce || feats[FEAT_VIDEO_PRESENT] > 0.0 || feats[FEAT_IMAGE_COUNT] > 0.3 {
         flag_bits |= NodeFlags::HAS_MEDIA;
     }
 
@@ -102,6 +102,134 @@ pub fn encode_features_with_flags(
         features: feats,
         flags: NodeFlags(flag_bits),
     }
+}
+
+/// Encode features from structured data (Layer 1) without browser rendering.
+///
+/// Fills feature dimensions from JSON-LD, OpenGraph, meta tags, links, headings, and forms.
+/// Commerce features (dims 48-63) from JSON-LD Product are AUTHORITATIVE (confidence 0.99).
+pub fn encode_features_from_structured_data(
+    sd: &StructuredData,
+    url: &str,
+    headers: &HeadResponse,
+) -> [f32; FEATURE_DIM] {
+    let mut feats = [0.0f32; FEATURE_DIM];
+
+    // ── Page Identity (0-15) ──
+    if let Some((page_type, confidence)) = sd.page_type {
+        feats[FEAT_PAGE_TYPE] = (page_type as u8) as f32 / 31.0;
+        feats[FEAT_PAGE_TYPE_CONFIDENCE] = confidence;
+    }
+    feats[FEAT_IS_HTTPS] = if url.starts_with("https://") {
+        1.0
+    } else {
+        0.0
+    };
+    feats[FEAT_URL_PATH_DEPTH] = count_path_depth(url) as f32 / 10.0;
+    feats[FEAT_URL_HAS_QUERY] = if url.contains('?') { 1.0 } else { 0.0 };
+    feats[FEAT_URL_HAS_FRAGMENT] = if url.contains('#') { 1.0 } else { 0.0 };
+    feats[FEAT_HAS_STRUCTURED_DATA] = if sd.has_jsonld {
+        1.0
+    } else if sd.has_opengraph {
+        0.5
+    } else {
+        0.0
+    };
+    if let Some(ref robots) = sd.meta.robots {
+        feats[FEAT_META_ROBOTS_INDEX] = if robots.contains("noindex") { 0.0 } else { 1.0 };
+    } else {
+        feats[FEAT_META_ROBOTS_INDEX] = 1.0;
+    }
+
+    // Content language from headers
+    if headers.content_language.is_some() {
+        feats[FEAT_CONTENT_LANGUAGE] = 1.0;
+    }
+
+    // ── Content Metrics (16-47) ──
+    let desc_len = sd
+        .meta
+        .description
+        .as_deref()
+        .or(sd.og.description.as_deref())
+        .map(|s| s.len())
+        .unwrap_or(0);
+    feats[FEAT_TEXT_LENGTH_LOG] = ((desc_len as f32 + 1.0).ln() / 12.0).clamp(0.0, 1.0);
+    feats[FEAT_HEADING_COUNT] = (sd.headings.len() as f32 / 10.0).clamp(0.0, 1.0);
+    feats[FEAT_LINK_COUNT_INTERNAL] =
+        (sd.links.iter().filter(|l| l.is_internal).count() as f32 / 100.0).clamp(0.0, 1.0);
+    feats[FEAT_LINK_COUNT_EXTERNAL] =
+        (sd.links.iter().filter(|l| !l.is_internal).count() as f32 / 50.0).clamp(0.0, 1.0);
+    feats[FEAT_FORM_FIELD_COUNT] =
+        (sd.forms.iter().map(|f| f.fields.len()).sum::<usize>() as f32 / 20.0).clamp(0.0, 1.0);
+
+    if sd.og.image.is_some() {
+        feats[FEAT_IMAGE_COUNT] = 0.1; // At least one image from OG
+    }
+
+    // ── Commerce Features (48-63) — AUTHORITATIVE from JSON-LD ──
+    if let Some(product) = sd.products.first() {
+        if let Some(price) = product.price {
+            feats[FEAT_PRICE] = price as f32;
+        }
+        if let Some(original) = product.original_price {
+            feats[FEAT_PRICE_ORIGINAL] = original as f32;
+            if let Some(price) = product.price {
+                if original > 0.0 {
+                    feats[FEAT_DISCOUNT_PCT] = ((1.0 - price / original) as f32).clamp(0.0, 1.0);
+                }
+            }
+        }
+        if let Some(ref avail) = product.availability {
+            feats[FEAT_AVAILABILITY] = if avail.contains("InStock") {
+                1.0
+            } else if avail.contains("OutOfStock") {
+                0.0
+            } else {
+                0.5
+            };
+        }
+        if let Some(rating) = product.rating_value {
+            let best = product.rating_best.unwrap_or(5.0);
+            feats[FEAT_RATING] = if best > 0.0 {
+                (rating / best) as f32
+            } else {
+                0.0
+            }
+            .clamp(0.0, 1.0);
+        }
+        if let Some(reviews) = product.review_count {
+            feats[FEAT_REVIEW_COUNT_LOG] = ((reviews as f32 + 1.0).ln() / 10.0).clamp(0.0, 1.0);
+        }
+    }
+
+    // Try OpenGraph price if no JSON-LD product
+    if feats[FEAT_PRICE] == 0.0 {
+        if let Some(ref amount) = sd.og.price_amount {
+            if let Ok(val) = amount.parse::<f32>() {
+                feats[FEAT_PRICE] = val;
+            }
+        }
+    }
+
+    // ── Navigation Features (64-79) ──
+    feats[FEAT_OUTBOUND_LINKS] = (sd.links.len() as f32 / 100.0).clamp(0.0, 1.0);
+    feats[FEAT_BREADCRUMB_DEPTH] = (sd.breadcrumbs.len() as f32 / 5.0).clamp(0.0, 1.0);
+    feats[FEAT_IS_DEAD_END] = if sd.links.is_empty() { 1.0 } else { 0.0 };
+
+    // ── Trust & Safety (80-95) ──
+    feats[FEAT_TLS_VALID] = if url.starts_with("https://") {
+        1.0
+    } else {
+        0.0
+    };
+    feats[FEAT_CONTENT_FRESHNESS] = 1.0; // Just fetched
+
+    // ── Action Features (96-111) ──
+    let form_count = sd.forms.len();
+    feats[FEAT_ACTION_COUNT] = (form_count as f32 / 20.0).clamp(0.0, 1.0);
+
+    feats
 }
 
 fn normalize_load_time(ms: u64) -> f32 {
@@ -198,8 +326,7 @@ fn encode_content_features(
             .filter_map(|c| c.get("text").and_then(|t| t.as_str()))
             .map(|s| s.len())
             .sum();
-        feats[FEAT_TEXT_LENGTH_LOG] =
-            ((total_text_len as f32 + 1.0).ln() / 12.0).clamp(0.0, 1.0);
+        feats[FEAT_TEXT_LENGTH_LOG] = ((total_text_len as f32 + 1.0).ln() / 12.0).clamp(0.0, 1.0);
     }
 
     // Form field count from structure

@@ -5,11 +5,7 @@ use crate::map::types::{NodeMatch, SiteMap, FEATURE_DIM};
 /// Find k nearest neighbors by cosine similarity.
 ///
 /// Uses brute-force scan with precomputed norms for efficiency.
-pub fn nearest_neighbors(
-    map: &SiteMap,
-    target: &[f32; FEATURE_DIM],
-    k: usize,
-) -> Vec<NodeMatch> {
+pub fn nearest_neighbors(map: &SiteMap, target: &[f32; FEATURE_DIM], k: usize) -> Vec<NodeMatch> {
     map.nearest(target, k)
 }
 

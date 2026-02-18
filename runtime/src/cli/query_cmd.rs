@@ -14,7 +14,6 @@ pub async fn run(
     limit: u32,
     feature_filters: &[String],
 ) -> Result<()> {
-
     // Load cached map
     let mut cache = MapCache::default_cache()?;
     let map = match cache.load_map(domain)? {
@@ -28,9 +27,7 @@ pub async fn run(
                 }));
                 return Ok(());
             }
-            bail!(
-                "No map found for '{domain}'. Run 'cortex map {domain}' first."
-            );
+            bail!("No map found for '{domain}'. Run 'cortex map {domain}' first.");
         }
     };
 

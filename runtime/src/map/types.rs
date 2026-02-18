@@ -654,15 +654,15 @@ mod tests {
 
         // Add 15 edges
         for i in 0..10 {
-            builder.add_edge(i, (i + 1) % 10, EdgeType::Navigation, 1, EdgeFlags::default());
+            builder.add_edge(
+                i,
+                (i + 1) % 10,
+                EdgeType::Navigation,
+                1,
+                EdgeFlags::default(),
+            );
             if i < 5 {
-                builder.add_edge(
-                    i,
-                    i + 5,
-                    EdgeType::ContentLink,
-                    2,
-                    EdgeFlags::default(),
-                );
+                builder.add_edge(i, i + 5, EdgeType::ContentLink, 2, EdgeFlags::default());
             }
         }
 
@@ -723,7 +723,9 @@ mod tests {
 
         let results = map.filter(&query);
         assert_eq!(results.len(), 2);
-        assert!(results.iter().all(|r| r.page_type == PageType::ProductDetail));
+        assert!(results
+            .iter()
+            .all(|r| r.page_type == PageType::ProductDetail));
     }
 
     #[test]

@@ -33,7 +33,11 @@ pub fn select_unrendered(map: &SiteMap, batch_size: usize) -> Vec<RenderCandidat
         .collect();
 
     // Sort by priority descending
-    candidates.sort_by(|a, b| b.priority.partial_cmp(&a.priority).unwrap_or(std::cmp::Ordering::Equal));
+    candidates.sort_by(|a, b| {
+        b.priority
+            .partial_cmp(&a.priority)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     candidates.truncate(batch_size);
     candidates
 }

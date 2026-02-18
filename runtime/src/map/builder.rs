@@ -175,12 +175,10 @@ impl SiteMapBuilder {
             let from = ed.from as usize;
             let to = ed.edge.target_node as usize;
             if from < node_count {
-                self.nodes[from].outbound_count =
-                    self.nodes[from].outbound_count.saturating_add(1);
+                self.nodes[from].outbound_count = self.nodes[from].outbound_count.saturating_add(1);
             }
             if to < node_count {
-                self.nodes[to].inbound_count =
-                    self.nodes[to].inbound_count.saturating_add(1);
+                self.nodes[to].inbound_count = self.nodes[to].inbound_count.saturating_add(1);
             }
         }
 

@@ -26,10 +26,7 @@ pub struct RefreshRequest {
 }
 
 /// Determine which nodes to refresh based on the request parameters.
-pub fn select_nodes_to_refresh(
-    map: &SiteMap,
-    request: &RefreshRequest,
-) -> Vec<u32> {
+pub fn select_nodes_to_refresh(map: &SiteMap, request: &RefreshRequest) -> Vec<u32> {
     if let Some(ref nodes) = request.nodes {
         return nodes.clone();
     }

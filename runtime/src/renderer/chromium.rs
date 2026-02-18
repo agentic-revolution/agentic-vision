@@ -56,8 +56,7 @@ pub fn find_chromium() -> Option<PathBuf> {
 
     // 4. Common macOS locations
     if cfg!(target_os = "macos") {
-        let common =
-            PathBuf::from("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome");
+        let common = PathBuf::from("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome");
         if common.exists() {
             return Some(common);
         }
@@ -75,8 +74,7 @@ pub struct ChromiumRenderer {
 impl ChromiumRenderer {
     /// Create a new ChromiumRenderer, launching a headless Chromium instance.
     pub async fn new() -> Result<Self> {
-        let chrome_path =
-            find_chromium().context("Chromium not found. Run `cortex install`.")?;
+        let chrome_path = find_chromium().context("Chromium not found. Run `cortex install`.")?;
 
         let config = BrowserConfig::builder()
             .chrome_executable(chrome_path)
@@ -155,11 +153,12 @@ impl RenderContext for ChromiumContext {
 
         match result {
             Ok(Ok(_response)) => {
-                // Wait for page to be loaded
-                let _ = self
-                    .page
-                    .wait_for_navigation()
-                    .await;
+                // Wait for page to be loaded (with timeout to prevent hangs)
+                let _ = tokio::time::timeout(
+                    std::time::Duration::from_secs(10),
+                    self.page.wait_for_navigation(),
+                )
+                .await;
 
                 let final_url = self
                     .page
@@ -242,10 +241,7 @@ mod tests {
 
         // Navigate to a data URL
         let nav = ctx
-            .navigate(
-                "data:text/html,<h1>Hello</h1><p>World</p>",
-                10000,
-            )
+            .navigate("data:text/html,<h1>Hello</h1><p>World</p>", 10000)
             .await
             .expect("navigation failed");
 

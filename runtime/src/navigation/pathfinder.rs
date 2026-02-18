@@ -7,12 +7,7 @@ use crate::map::types::{Path, PathConstraints, SiteMap};
 /// Uses Dijkstra's algorithm on the SiteMap's CSR edge structure.
 /// Respects path constraints (avoid auth, avoid state changes).
 /// Weight mode controls what is minimized (hops, weight, state changes).
-pub fn find_path(
-    map: &SiteMap,
-    from: u32,
-    to: u32,
-    constraints: &PathConstraints,
-) -> Option<Path> {
+pub fn find_path(map: &SiteMap, from: u32, to: u32, constraints: &PathConstraints) -> Option<Path> {
     map.shortest_path(from, to, constraints)
 }
 

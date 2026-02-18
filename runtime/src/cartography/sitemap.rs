@@ -32,8 +32,7 @@ pub fn parse_sitemap(xml: &str) -> Result<Vec<SitemapEntry>> {
     loop {
         match reader.read_event_into(&mut buf) {
             Ok(Event::Start(e)) => {
-                let name =
-                    String::from_utf8_lossy(e.local_name().as_ref()).to_string();
+                let name = String::from_utf8_lossy(e.local_name().as_ref()).to_string();
                 match name.as_str() {
                     "url" => {
                         in_url = true;
@@ -51,8 +50,7 @@ pub fn parse_sitemap(xml: &str) -> Result<Vec<SitemapEntry>> {
                 }
             }
             Ok(Event::End(e)) => {
-                let name =
-                    String::from_utf8_lossy(e.local_name().as_ref()).to_string();
+                let name = String::from_utf8_lossy(e.local_name().as_ref()).to_string();
                 match name.as_str() {
                     "url" if in_url => {
                         if !current_loc.is_empty() {

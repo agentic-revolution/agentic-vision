@@ -1,10 +1,15 @@
 //! Start the Cortex daemon process.
 
+use crate::cartography::mapper::Mapper;
 use crate::cli::output::{self, Styled};
+use crate::extraction::loader::ExtractionLoader;
+use crate::renderer::chromium::ChromiumRenderer;
+use crate::renderer::Renderer;
 use crate::server::Server;
 use anyhow::{Context, Result};
 use std::path::PathBuf;
-use tracing::info;
+use std::sync::Arc;
+use tracing::{info, warn};
 
 /// Default socket path.
 pub const SOCKET_PATH: &str = "/tmp/cortex.sock";
@@ -47,10 +52,7 @@ pub async fn run() -> Result<()> {
 
     // Check if already running
     if let Some(pid) = check_already_running() {
-        eprintln!(
-            "  {} Cortex is already running (PID {pid}).",
-            s.warn_sym()
-        );
+        eprintln!("  {} Cortex is already running (PID {pid}).", s.warn_sym());
         eprintln!("  Use 'cortex restart' or 'cortex stop' first.");
         std::process::exit(1);
     }
@@ -91,10 +93,43 @@ pub async fn run() -> Result<()> {
         eprintln!("  Listening on {SOCKET_PATH}");
     }
 
-    // Set up SIGTERM/SIGINT handling
-    let server = Server::new(&socket_path);
+    // Initialize browser renderer
+    let server = match ChromiumRenderer::new().await {
+        Ok(renderer) => {
+            info!("Chromium renderer initialized");
+            let renderer: Arc<dyn Renderer> = Arc::new(renderer);
+
+            // Initialize extraction loader
+            let extractor_loader = match ExtractionLoader::new() {
+                Ok(loader) => {
+                    info!("Extraction loader initialized");
+                    Arc::new(loader)
+                }
+                Err(e) => {
+                    warn!("Failed to initialize extraction loader: {e}");
+                    warn!("MAP requests will use fallback extractors");
+                    Arc::new(
+                        ExtractionLoader::new()
+                            .unwrap_or_else(|_| panic!("ExtractionLoader must initialize")),
+                    )
+                }
+            };
+
+            // Create mapper
+            let mapper = Arc::new(Mapper::new(Arc::clone(&renderer), extractor_loader));
+
+            Server::new(&socket_path).with_mapper(renderer, mapper)
+        }
+        Err(e) => {
+            warn!("Failed to initialize Chromium: {e}");
+            warn!("MAP and PERCEIVE requests will not be available");
+            Server::new(&socket_path)
+        }
+    };
+
     let shutdown = server.shutdown_handle();
 
+    // Set up SIGTERM/SIGINT handling
     let shutdown_signal = shutdown.clone();
     tokio::spawn(async move {
         let _ = tokio::signal::ctrl_c().await;

@@ -4,6 +4,7 @@ use crate::renderer::RenderContext;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use tracing::{info, warn};
 
 /// Names of the extraction scripts.
 const EXTRACTOR_NAMES: &[&str] = &["content", "actions", "navigation", "structure", "metadata"];
@@ -29,15 +30,25 @@ impl ExtractionLoader {
         let mut scripts = Vec::new();
 
         // Look for scripts in several locations
-        let search_paths = vec![
-            // Relative to binary
+        let mut search_paths = vec![
+            // Relative to CWD
             PathBuf::from("extractors/dist"),
-            // Relative to workspace root
+            // Relative to workspace root (from runtime/)
             PathBuf::from("../extractors/dist"),
             // Embedded in source tree
-            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("src/extraction/scripts"),
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/extraction/scripts"),
         ];
+
+        // Relative to binary location
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(exe_dir) = exe.parent() {
+                // Binary is typically at runtime/target/release/cortex
+                // Extractors at extractors/dist (3 levels up then into extractors/dist)
+                search_paths.insert(0, exe_dir.join("../../../extractors/dist"));
+                search_paths.insert(1, exe_dir.join("../../extractors/dist"));
+                search_paths.insert(2, exe_dir.join("../extractors/dist"));
+            }
+        }
 
         for name in EXTRACTOR_NAMES {
             let filename = format!("{name}.js");
@@ -48,6 +59,7 @@ impl ExtractionLoader {
                 if path.exists() {
                     let content = std::fs::read_to_string(&path)
                         .with_context(|| format!("reading {}", path.display()))?;
+                    info!("loaded extractor {name}.js from {}", path.display());
                     scripts.push((name.to_string(), content));
                     found = true;
                     break;
@@ -55,6 +67,7 @@ impl ExtractionLoader {
             }
 
             if !found {
+                warn!("extractor script {name}.js not found, using fallback");
                 // Use a minimal fallback script that returns empty data
                 scripts.push((
                     name.to_string(),
@@ -69,19 +82,15 @@ impl ExtractionLoader {
     }
 
     /// Inject all extraction scripts into a page and collect results.
-    pub async fn inject_and_run(
-        &self,
-        context: &dyn RenderContext,
-    ) -> Result<ExtractionResult> {
-        // Inject all scripts first
+    pub async fn inject_and_run(&self, context: &dyn RenderContext) -> Result<ExtractionResult> {
+        // Inject all scripts (continue on individual failures)
         for (name, script) in &self.scripts {
-            context
-                .execute_js(script)
-                .await
-                .with_context(|| format!("injecting {name} extractor"))?;
+            if let Err(e) = context.execute_js(script).await {
+                warn!("failed to inject {name} extractor: {e}");
+            }
         }
 
-        // Run the extraction entry point
+        // Run the extraction entry point with a timeout
         let run_script = r#"
             (function() {
                 var result = {};

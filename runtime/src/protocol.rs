@@ -41,7 +41,7 @@ impl Method {
 }
 
 /// A parsed protocol request.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Request {
     pub id: String,
     pub method: Method,
@@ -65,7 +65,10 @@ pub fn parse_request(json: &str) -> Result<Request> {
 
     let method = Method::from_str(method_str)?;
 
-    let params = v.get("params").cloned().unwrap_or(Value::Object(Default::default()));
+    let params = v
+        .get("params")
+        .cloned()
+        .unwrap_or(Value::Object(Default::default()));
 
     Ok(Request { id, method, params })
 }
@@ -175,7 +178,7 @@ mod tests {
             "{\"method\": null}",
             "{\"id\": \"x\", \"method\": 42}",
             "{\"id\": \"x\", \"method\": \"\"}",
-            "{\"id\": \"x\", \"method\": \"handshake\"}",  // missing params (ok)
+            "{\"id\": \"x\", \"method\": \"handshake\"}", // missing params (ok)
             "{\"id\": null, \"method\": \"status\"}",
             "{{{{",
             "\x00\x01\x02\x03",

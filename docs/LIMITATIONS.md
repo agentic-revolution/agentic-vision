@@ -40,3 +40,19 @@ Price features (dimension 48) store raw numeric values in whatever currency the 
 ## 8. Rate Limiting Is Best-Effort
 
 Cortex respects `robots.txt` crawl-delay directives and self-limits to 5 concurrent requests per domain. However, aggressive mapping of sensitive sites may still trigger server-side rate limits or IP bans. If a site returns 429 responses, Cortex backs off with exponential delay, but persistent rate limiting will result in a partial map.
+
+## 9. HTTP/2 Protocol Errors on Some Sites
+
+Some sites (notably washingtonpost.com, hotels.com, opentable.com, costco.com) fail with `ERR_HTTP2_PROTOCOL_ERROR` during both mapping and perceive operations. This appears to be an incompatibility between the headless Chrome HTTP/2 implementation and certain CDN/WAF configurations. A future version will add HTTP/1.1 fallback when HTTP/2 connections fail.
+
+## 10. Bot Detection Blocks Headless Chrome on ~10% of Sites
+
+Sites using advanced bot detection (Cloudflare Bot Management, Akamai Bot Manager, PerimeterX, DataDome) may block headless Chrome entirely, resulting in empty or captcha-only responses. Affected sites include major e-commerce (bestbuy.com, booking.com), social platforms (reddit.com), and travel aggregators (tripadvisor.com). Cortex includes HTTP fallback for link discovery (fetching homepage HTML via standard HTTP client), but this produces lower-quality maps without rendered features. Future versions will improve stealth mode and add proxy rotation support.
+
+## 11. SPA Sites Without Server-Side Rendering Return Minimal Data
+
+Pure client-rendered SPAs (quora.com, stackoverflow.com, producthunt.com, doordash.com, npmjs.com) serve minimal HTML shells with no discoverable links. Both headless Chrome extraction and HTTP fallback fail to find internal navigation links. The CDP JavaScript evaluation fallback (`document.querySelectorAll('a[href]')`) helps for some SPAs but not those that render links only after authentication or complex user interaction. Future versions will add longer SPA rendering wait times and interaction-based link discovery.
+
+## 12. Timeout Fallback Maps Have Reduced Quality
+
+When mapping times out, Cortex builds a fallback map using HTTP-only link discovery and sitemap.xml parsing (no browser rendering). These fallback maps have interpolated or default feature vectors (not real extracted features), which reduces accuracy for feature-based queries and filtering. The `timeout_fallback` field in the MAP response indicates when this has occurred.

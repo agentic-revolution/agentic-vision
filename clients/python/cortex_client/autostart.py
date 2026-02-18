@@ -84,7 +84,7 @@ def _is_responsive(socket_path: str) -> bool:
             request = (
                 json.dumps(
                     {
-                        "id": "ping",
+                        "id": f"ping-{time.monotonic_ns()}",
                         "method": "handshake",
                         "params": {"client_version": "0.1.0", "protocol_version": 1},
                     }

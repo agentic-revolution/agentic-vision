@@ -83,16 +83,8 @@ pub async fn run() -> Result<()> {
             let max = pool.get("max").and_then(|v| v.as_u64()).unwrap_or(0);
             let mem = pool.get("memory_mb").and_then(|v| v.as_u64()).unwrap_or(0);
             output::print_section(&s, "Browser Pool");
-            output::print_check(
-                " ",
-                "Active:",
-                &format!("{active} / {max} contexts"),
-            );
-            output::print_check(
-                " ",
-                "Memory:",
-                &format!("{mem} MB"),
-            );
+            output::print_check(" ", "Active:", &format!("{active} / {max} contexts"));
+            output::print_check(" ", "Memory:", &format!("{mem} MB"));
             eprintln!();
         }
 

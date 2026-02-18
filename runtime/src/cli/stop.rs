@@ -55,13 +55,8 @@ pub async fn run() -> Result<()> {
         if !output.status.success() {
             let _ = std::fs::remove_file(&pid_path);
             if !output::is_quiet() {
-                eprintln!(
-                    " {}",
-                    s.warn_sym()
-                );
-                eprintln!(
-                    "  Process may have already exited. Cleaned up PID file."
-                );
+                eprintln!(" {}", s.warn_sym());
+                eprintln!("  Process may have already exited. Cleaned up PID file.");
             }
             return Ok(());
         }

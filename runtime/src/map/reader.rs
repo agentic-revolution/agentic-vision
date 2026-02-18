@@ -166,12 +166,7 @@ impl SiteMap {
     }
 
     /// Update a node with fresh data.
-    pub fn update_node(
-        &mut self,
-        index: u32,
-        record: NodeRecord,
-        features: [f32; FEATURE_DIM],
-    ) {
+    pub fn update_node(&mut self, index: u32, record: NodeRecord, features: [f32; FEATURE_DIM]) {
         let idx = index as usize;
         if idx < self.nodes.len() {
             self.nodes[idx] = record;
@@ -180,14 +175,9 @@ impl SiteMap {
     }
 
     /// Find shortest path between two nodes using Dijkstra's algorithm.
-    pub fn shortest_path(
-        &self,
-        from: u32,
-        to: u32,
-        constraints: &PathConstraints,
-    ) -> Option<Path> {
-        use std::collections::BinaryHeap;
+    pub fn shortest_path(&self, from: u32, to: u32, constraints: &PathConstraints) -> Option<Path> {
         use std::cmp::Reverse;
+        use std::collections::BinaryHeap;
 
         let n = self.nodes.len();
         if from as usize >= n || to as usize >= n {
@@ -285,6 +275,8 @@ impl PartialOrd for OrderedF32 {
 
 impl Ord for OrderedF32 {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.partial_cmp(&other.0).unwrap_or(std::cmp::Ordering::Equal)
+        self.0
+            .partial_cmp(&other.0)
+            .unwrap_or(std::cmp::Ordering::Equal)
     }
 }
