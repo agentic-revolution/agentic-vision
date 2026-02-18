@@ -213,10 +213,7 @@ pub async fn execute_action(
 /// injection into JS strings to prevent XSS and JS injection. Values are:
 /// - Escaped for JS string context (backslash, quotes, newlines)
 /// - Injected only into string literals, never into code positions
-fn build_action_script(
-    opcode: &OpCode,
-    params: &HashMap<String, serde_json::Value>,
-) -> String {
+fn build_action_script(opcode: &OpCode, params: &HashMap<String, serde_json::Value>) -> String {
     match (opcode.category, opcode.action) {
         // Navigation: click
         (0x01, 0x00) => {

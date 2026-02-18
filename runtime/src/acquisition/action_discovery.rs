@@ -171,19 +171,14 @@ pub fn discover_actions_from_html(html: &str, base_url: &str) -> Vec<HttpAction>
         Ok(s) => s,
         Err(_) => return actions,
     };
-    let field_sel =
-        Selector::parse("input, select, textarea").expect("field selector is valid");
+    let field_sel = Selector::parse("input, select, textarea").expect("field selector is valid");
     let button_sel =
         Selector::parse("button, input[type=\"submit\"]").expect("button selector is valid");
 
     for form in document.select(&form_sel) {
         let action_raw = form.value().attr("action").unwrap_or("");
         let action_url = resolve_url(base_url, action_raw);
-        let method = form
-            .value()
-            .attr("method")
-            .unwrap_or("GET")
-            .to_uppercase();
+        let method = form.value().attr("method").unwrap_or("GET").to_uppercase();
         let enctype = form
             .value()
             .attr("enctype")
@@ -261,17 +256,13 @@ pub fn discover_actions_from_js(js_source: &str, base_url: &str) -> Vec<HttpActi
     let mut seen_urls: std::collections::HashSet<String> = std::collections::HashSet::new();
 
     // Pattern 1: fetch("url", {method: "METHOD"})
-    let fetch_re = Regex::new(
-        r#"fetch\(\s*['"]([^'"]+)['"]\s*,\s*\{[^}]*method\s*:\s*['"](\w+)['"]"#,
-    )
-    .expect("fetch regex is valid");
+    let fetch_re =
+        Regex::new(r#"fetch\(\s*['"]([^'"]+)['"]\s*,\s*\{[^}]*method\s*:\s*['"](\w+)['"]"#)
+            .expect("fetch regex is valid");
 
     for caps in fetch_re.captures_iter(js_source) {
         let url_raw = caps.get(1).map_or("", |m| m.as_str());
-        let method = caps
-            .get(2)
-            .map_or("GET", |m| m.as_str())
-            .to_uppercase();
+        let method = caps.get(2).map_or("GET", |m| m.as_str()).to_uppercase();
         let url = resolve_url(base_url, url_raw);
         if seen_urls.insert(format!("{method}:{url}")) {
             actions.push(HttpAction {
@@ -310,16 +301,11 @@ pub fn discover_actions_from_js(js_source: &str, base_url: &str) -> Vec<HttpActi
     }
 
     // Pattern 2: axios.get|post|put|delete("url")
-    let axios_re = Regex::new(
-        r#"axios\.(get|post|put|delete|patch)\(\s*['"]([^'"]+)['"]"#,
-    )
-    .expect("axios regex is valid");
+    let axios_re = Regex::new(r#"axios\.(get|post|put|delete|patch)\(\s*['"]([^'"]+)['"]"#)
+        .expect("axios regex is valid");
 
     for caps in axios_re.captures_iter(js_source) {
-        let method = caps
-            .get(1)
-            .map_or("GET", |m| m.as_str())
-            .to_uppercase();
+        let method = caps.get(1).map_or("GET", |m| m.as_str()).to_uppercase();
         let url_raw = caps.get(2).map_or("", |m| m.as_str());
         let url = resolve_url(base_url, url_raw);
         if seen_urls.insert(format!("{method}:{url}")) {
@@ -370,8 +356,7 @@ pub fn discover_actions_from_js(js_source: &str, base_url: &str) -> Vec<HttpActi
     }
 
     // Pattern 4: bare /api/ path string literals
-    let api_path_re =
-        Regex::new(r#"['"](/api/[^'"]+)['"]"#).expect("api path regex is valid");
+    let api_path_re = Regex::new(r#"['"](/api/[^'"]+)['"]"#).expect("api path regex is valid");
 
     for caps in api_path_re.captures_iter(js_source) {
         let url_raw = caps.get(1).map_or("", |m| m.as_str());
@@ -563,17 +548,15 @@ fn classify_api_opcode(url: &str, method: &str) -> OpCode {
     if url_lower.contains("/cart") || url_lower.contains("/basket") {
         return match method {
             "POST" => OpCode::new(0x02, 0x00),   // commerce: add_to_cart
-            "DELETE" => OpCode::new(0x02, 0x01),  // commerce: remove_from_cart
+            "DELETE" => OpCode::new(0x02, 0x01), // commerce: remove_from_cart
             "PUT" | "PATCH" => OpCode::new(0x02, 0x02), // commerce: update_cart
-            _ => OpCode::new(0x02, 0x06),         // commerce: view_cart
+            _ => OpCode::new(0x02, 0x06),        // commerce: view_cart
         };
     }
     if url_lower.contains("/search") || url_lower.contains("/query") {
         return OpCode::new(0x00, 0x01); // nav: search
     }
-    if url_lower.contains("/auth")
-        || url_lower.contains("/login")
-        || url_lower.contains("/session")
+    if url_lower.contains("/auth") || url_lower.contains("/login") || url_lower.contains("/session")
     {
         return OpCode::new(0x04, 0x01); // form: login
     }
@@ -636,9 +619,7 @@ mod tests {
 
         let action = &actions[0];
         if let ActionSource::Form {
-            action_url,
-            method,
-            ..
+            action_url, method, ..
         } = &action.source
         {
             assert_eq!(action_url, "https://example.com/login");
@@ -711,9 +692,7 @@ mod tests {
                 )
             })
             .expect("should find GET /api/items/123");
-        assert!(
-            matches!(&get_action.source, ActionSource::Api { method, .. } if method == "GET")
-        );
+        assert!(matches!(&get_action.source, ActionSource::Api { method, .. } if method == "GET"));
     }
 
     #[test]

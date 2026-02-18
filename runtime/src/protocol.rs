@@ -17,6 +17,7 @@ pub enum Method {
     Act,
     Watch,
     Perceive,
+    Auth,
     Status,
 }
 
@@ -32,9 +33,10 @@ impl Method {
             "act" => Ok(Self::Act),
             "watch" => Ok(Self::Watch),
             "perceive" => Ok(Self::Perceive),
+            "auth" => Ok(Self::Auth),
             "status" => Ok(Self::Status),
             _ => bail!(
-                "unknown method '{s}'. Valid methods: handshake, map, query, pathfind, refresh, act, watch, perceive, status"
+                "unknown method '{s}'. Valid methods: handshake, map, query, pathfind, refresh, act, watch, perceive, auth, status"
             ),
         }
     }

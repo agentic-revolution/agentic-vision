@@ -138,11 +138,8 @@ fn extract_price(document: &Html, config: &Value, result: &mut PatternResult) {
                 if let Some(selector_str) = price_config["data_attributes"]
                     .as_array()
                     .and_then(|arr| {
-                        arr.iter().find(|v| {
-                            v.as_str()
-                                .map(|s| s.contains(attr_name))
-                                .unwrap_or(false)
-                        })
+                        arr.iter()
+                            .find(|v| v.as_str().map(|s| s.contains(attr_name)).unwrap_or(false))
                     })
                     .and_then(|v| v.as_str())
                 {
@@ -205,8 +202,8 @@ fn extract_price(document: &Html, config: &Value, result: &mut PatternResult) {
 
     // Strategy 4: regex on full page text (confidence 0.70)
     let body_text = extract_body_text(document);
-    let price_re = Regex::new(r"[$\u{20AC}\u{00A3}\u{00A5}]\s*[\d,]+\.?\d*")
-        .expect("price regex is valid");
+    let price_re =
+        Regex::new(r"[$\u{20AC}\u{00A3}\u{00A5}]\s*[\d,]+\.?\d*").expect("price regex is valid");
     if let Some(mat) = price_re.find(&body_text) {
         let matched = mat.as_str();
         if let Some(price) = parse_price_text(matched) {
@@ -230,11 +227,8 @@ fn extract_rating(document: &Html, config: &Value, result: &mut PatternResult) {
                 if let Some(selector_str) = rating_config["data_attributes"]
                     .as_array()
                     .and_then(|arr| {
-                        arr.iter().find(|v| {
-                            v.as_str()
-                                .map(|s| s.contains(attr_name))
-                                .unwrap_or(false)
-                        })
+                        arr.iter()
+                            .find(|v| v.as_str().map(|s| s.contains(attr_name)).unwrap_or(false))
                     })
                     .and_then(|v| v.as_str())
                 {
@@ -486,12 +480,7 @@ fn extract_page_type(document: &Html, config: &Value, result: &mut PatternResult
 // ── Action detection ─────────────────────────────────────────────────────────
 
 /// Discover interactive actions: buttons, submit inputs, forms, and CTA links.
-fn extract_actions(
-    document: &Html,
-    base_url: &str,
-    config: &Value,
-    result: &mut PatternResult,
-) {
+fn extract_actions(document: &Html, base_url: &str, config: &Value, result: &mut PatternResult) {
     let action_keywords = &config["action_keywords"];
 
     // 1. Buttons and submit inputs
@@ -526,19 +515,11 @@ fn extract_actions(
         for form in document.select(&form_sel) {
             let action_raw = form.value().attr("action").unwrap_or("");
             let action_url = resolve_url(base_url, action_raw);
-            let method = form
-                .value()
-                .attr("method")
-                .unwrap_or("GET")
-                .to_uppercase();
+            let method = form.value().attr("method").unwrap_or("GET").to_uppercase();
 
             let mut fields = Vec::new();
             for field in form.select(&field_sel) {
-                let name = field
-                    .value()
-                    .attr("name")
-                    .unwrap_or("")
-                    .to_string();
+                let name = field.value().attr("name").unwrap_or("").to_string();
                 let field_type = field
                     .value()
                     .attr("type")
@@ -571,8 +552,8 @@ fn extract_actions(
                         continue;
                     }
                     // Check if it matches a known action keyword first
-                    let opcode = classify_action_label(&label, action_keywords)
-                        .unwrap_or((0x00, 0x00)); // default: navigation click
+                    let opcode =
+                        classify_action_label(&label, action_keywords).unwrap_or((0x00, 0x00)); // default: navigation click
                     result.actions.push(DiscoveredAction {
                         label,
                         opcode,
@@ -1097,10 +1078,7 @@ mod tests {
         </body></html>
         "#;
         let result = extract_from_patterns(html, "https://example.com");
-        let login_action = result
-            .actions
-            .iter()
-            .find(|a| a.opcode == (0x04, 0x01));
+        let login_action = result.actions.iter().find(|a| a.opcode == (0x04, 0x01));
         assert!(login_action.is_some());
     }
 
@@ -1259,10 +1237,7 @@ mod tests {
 
         // Actions
         assert!(!result.actions.is_empty());
-        let add_to_cart = result
-            .actions
-            .iter()
-            .any(|a| a.opcode == (0x02, 0x00));
+        let add_to_cart = result.actions.iter().any(|a| a.opcode == (0x02, 0x00));
         assert!(add_to_cart);
 
         // Forms

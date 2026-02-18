@@ -28,6 +28,7 @@ from .errors import (
     CortexSetupError,
     CortexTimeoutError,
 )
+from .session import Session
 from .sitemap import (
     ActResult,
     NodeMatch,
@@ -48,6 +49,9 @@ __all__ = [
     "perceive",
     "perceive_many",
     "status",
+    "login",
+    "login_oauth",
+    "login_api_key",
     # Utilities
     "normalize_domain",
     # Classes
@@ -60,6 +64,7 @@ __all__ = [
     "WatchDelta",
     "RuntimeStatus",
     "PageResult",
+    "Session",
     "Connection",
     # Errors
     "CortexError",
@@ -171,6 +176,7 @@ class PageResult:
 def map(
     domain: str,
     *,
+    session: Session | None = None,
     max_nodes: int = 50000,
     max_render: int = 200,
     max_time_ms: int = 10000,
@@ -184,6 +190,9 @@ def map(
         domain: The domain to map. Accepts full URLs — protocol and path
             will be stripped automatically. E.g. ``"amazon.com"`` or
             ``"https://amazon.com/dp/B0EXAMPLE"``.
+        session: Optional authenticated session for mapping private content.
+            Obtain via :func:`login`, :func:`login_oauth`, or
+            :func:`login_api_key`.
         max_nodes: Maximum number of nodes to include.
         max_render: Maximum pages to render with a browser.
         max_time_ms: Maximum mapping time in milliseconds.
@@ -204,6 +213,10 @@ def map(
 
         site = cortex_client.map("amazon.com")
         print(f"{site.node_count} nodes, {site.edge_count} edges")
+
+        # Authenticated mapping:
+        session = cortex_client.login("example.com", username="me", password="pw")
+        site = cortex_client.map("example.com", session=session)
     """
     domain = normalize_domain(domain)
     ensure_running(socket_path)
@@ -215,6 +228,8 @@ def map(
         max_time_ms=max_time_ms,
         respect_robots=respect_robots,
     )
+    if session is not None:
+        params["session_id"] = session.session_id
     resp = conn.send("map", params)
     if "error" in resp:
         err = resp["error"]
@@ -371,4 +386,163 @@ def status(
         active_contexts=result.get("active_contexts", 0),
         cached_maps=result.get("cached_maps", 0),
         memory_mb=result.get("memory_mb", 0.0),
+    )
+
+
+def login(
+    domain: str,
+    *,
+    username: str,
+    password: str,
+    socket_path: str = DEFAULT_SOCKET_PATH,
+) -> Session:
+    """Authenticate with a website via HTTP password login.
+
+    Discovers the login form, fills in credentials, POSTs the form, and
+    captures session cookies. No browser needed for standard login forms.
+
+    Args:
+        domain: The domain to authenticate with.
+        username: Username or email address.
+        password: Password.
+        socket_path: Path to the Cortex Unix socket.
+
+    Returns:
+        A Session for authenticated mapping and actions.
+
+    Raises:
+        CortexError: If authentication fails.
+
+    Example::
+
+        session = cortex_client.login("example.com", username="me", password="pw")
+        site = cortex_client.map("example.com", session=session)
+    """
+    domain = normalize_domain(domain)
+    ensure_running(socket_path)
+    conn = Connection(socket_path)
+    resp = conn.send(
+        "auth",
+        {
+            "domain": domain,
+            "auth_type": "password",
+            "username": username,
+            "password": password,
+        },
+    )
+    if "error" in resp:
+        err = resp["error"]
+        raise CortexError(
+            err.get("message", "auth failed"),
+            code=err.get("code", "E_AUTH_FAILED"),
+        )
+    result = resp.get("result", {})
+    return Session(
+        session_id=result["session_id"],
+        domain=result.get("domain", domain),
+        auth_type=result.get("auth_type", "password"),
+        expires_at=result.get("expires_at"),
+    )
+
+
+def login_oauth(
+    domain: str,
+    *,
+    provider: str = "google",
+    socket_path: str = DEFAULT_SOCKET_PATH,
+) -> Session:
+    """Authenticate via OAuth. Opens browser briefly for consent.
+
+    Args:
+        domain: The domain to authenticate with.
+        provider: OAuth provider name (e.g. ``"google"``, ``"github"``).
+        socket_path: Path to the Cortex Unix socket.
+
+    Returns:
+        A Session for authenticated mapping and actions.
+
+    Raises:
+        CortexError: If authentication fails.
+
+    Example::
+
+        session = cortex_client.login_oauth("example.com", provider="google")
+        site = cortex_client.map("example.com", session=session)
+    """
+    domain = normalize_domain(domain)
+    ensure_running(socket_path)
+    conn = Connection(socket_path)
+    resp = conn.send(
+        "auth",
+        {
+            "domain": domain,
+            "auth_type": "oauth",
+            "provider": provider,
+        },
+    )
+    if "error" in resp:
+        err = resp["error"]
+        raise CortexError(
+            err.get("message", "auth failed"),
+            code=err.get("code", "E_AUTH_FAILED"),
+        )
+    result = resp.get("result", {})
+    return Session(
+        session_id=result["session_id"],
+        domain=result.get("domain", domain),
+        auth_type=result.get("auth_type", "oauth"),
+        expires_at=result.get("expires_at"),
+    )
+
+
+def login_api_key(
+    domain: str,
+    *,
+    key: str,
+    header_name: str = "X-Api-Key",
+    socket_path: str = DEFAULT_SOCKET_PATH,
+) -> Session:
+    """Create an API-key authenticated session. No network call needed.
+
+    Args:
+        domain: The domain to authenticate with.
+        key: The API key value.
+        header_name: HTTP header name for the key (default ``X-Api-Key``).
+        socket_path: Path to the Cortex Unix socket.
+
+    Returns:
+        A Session for authenticated mapping and actions.
+
+    Raises:
+        CortexError: If session creation fails.
+
+    Example::
+
+        session = cortex_client.login_api_key("api.example.com", key="sk-...")
+        site = cortex_client.map("api.example.com", session=session)
+    """
+    domain = normalize_domain(domain)
+    ensure_running(socket_path)
+    conn = Connection(socket_path)
+    resp = conn.send(
+        "auth",
+        {
+            "domain": domain,
+            "auth_type": "api_key",
+            "key": key,
+            "header_name": header_name,
+        },
+    )
+    if "error" in resp:
+        err = resp["error"]
+        raise CortexError(
+            err.get("message", "auth failed"),
+            code=err.get("code", "E_AUTH_FAILED"),
+        )
+    result = resp.get("result", {})
+    return Session(
+        session_id=result["session_id"],
+        domain=result.get("domain", domain),
+        auth_type=result.get("auth_type", "api_key"),
+        expires_at=result.get("expires_at"),
     )

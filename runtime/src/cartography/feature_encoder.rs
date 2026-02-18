@@ -312,13 +312,9 @@ pub fn encode_features_from_patterns(
         .any(|a| a.opcode.0 == 0x02 || a.opcode.0 == 0x04);
     feats[FEAT_PRIMARY_CTA_PRESENT] = if has_cta { 1.0 } else { 0.0 };
 
-    feats[FEAT_FORM_FIELD_COUNT] = (patterns
-        .forms
-        .iter()
-        .map(|f| f.fields.len())
-        .sum::<usize>() as f32
-        / 20.0)
-        .clamp(0.0, 1.0);
+    feats[FEAT_FORM_FIELD_COUNT] =
+        (patterns.forms.iter().map(|f| f.fields.len()).sum::<usize>() as f32 / 20.0)
+            .clamp(0.0, 1.0);
 
     feats
 }

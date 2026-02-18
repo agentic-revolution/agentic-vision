@@ -525,11 +525,9 @@ impl Mapper {
                     );
                     let sd_completeness = structured::data_completeness(sd);
                     // Pattern completeness: rough estimate from filled dimensions
-                    let pattern_completeness = pattern_features
-                        .iter()
-                        .filter(|&&v| v != 0.0)
-                        .count() as f32
-                        / FEATURE_DIM as f32;
+                    let pattern_completeness =
+                        pattern_features.iter().filter(|&&v| v != 0.0).count() as f32
+                            / FEATURE_DIM as f32;
                     feature_encoder::merge_features(
                         &sd_features,
                         sd_completeness,

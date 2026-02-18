@@ -140,6 +140,49 @@ impl HttpClient {
         }
     }
 
+    /// POST form data (url-encoded) and return a response with all headers.
+    ///
+    /// Unlike `get()`, this captures *all* response headers (not a filtered
+    /// subset), because callers like the auth module need `set-cookie` headers.
+    pub async fn post_form(
+        &self,
+        url: &str,
+        form_fields: &[(String, String)],
+        extra_headers: &[(String, String)],
+        timeout_ms: u64,
+    ) -> Result<HttpResponse> {
+        let mut builder = self
+            .client
+            .post(url)
+            .timeout(Duration::from_millis(timeout_ms));
+
+        for (name, value) in extra_headers {
+            builder = builder.header(name.as_str(), value.as_str());
+        }
+
+        builder = builder.form(form_fields);
+
+        let r = builder.send().await?;
+        let status = r.status().as_u16();
+        let final_url = r.url().to_string();
+
+        let headers: Vec<(String, String)> = r
+            .headers()
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
+            .collect();
+
+        let body = r.text().await.unwrap_or_default();
+
+        Ok(HttpResponse {
+            url: url.to_string(),
+            final_url,
+            status,
+            headers,
+            body,
+        })
+    }
+
     /// Perform parallel GET requests with bounded concurrency.
     pub async fn get_many(
         &self,

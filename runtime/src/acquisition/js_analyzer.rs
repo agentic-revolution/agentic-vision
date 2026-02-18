@@ -269,8 +269,7 @@ mod tests {
 
     #[test]
     fn test_extract_inline_scripts_ignored() {
-        let html =
-            r#"<script>console.log("inline")</script><script src="/app.js"></script>"#;
+        let html = r#"<script>console.log("inline")</script><script src="/app.js"></script>"#;
         let urls = extract_script_urls(html, "https://example.com");
         assert_eq!(urls.len(), 1);
         assert_eq!(urls[0], "https://example.com/app.js");

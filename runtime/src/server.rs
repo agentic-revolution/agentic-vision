@@ -3,6 +3,7 @@
 //! Handles connection lifecycle, inactivity timeouts, malformed JSON,
 //! rate limiting, and concurrent request management.
 
+use crate::acquisition::http_session::HttpSession;
 use crate::cartography::mapper::{MapRequest, Mapper};
 use crate::live::perceive as perceive_handler;
 use crate::map::types::{
@@ -36,6 +37,8 @@ struct SharedState {
     started_at: Instant,
     seen_ids: Arc<Mutex<HashSet<String>>>,
     maps: Arc<RwLock<HashMap<String, SiteMap>>>,
+    /// Authenticated sessions keyed by session_id.
+    sessions: Arc<RwLock<HashMap<String, HttpSession>>>,
     mapper: Option<Arc<Mapper>>,
     renderer: Option<Arc<dyn Renderer>>,
 }
@@ -50,6 +53,8 @@ pub struct Server {
     /// In-memory map store. RwLock allows concurrent reads (QUERY/PATHFIND)
     /// while serializing writes (MAP completion).
     maps: Arc<RwLock<HashMap<String, SiteMap>>>,
+    /// Authenticated sessions keyed by session_id.
+    sessions: Arc<RwLock<HashMap<String, HttpSession>>>,
     /// Mapper for executing MAP requests (None if renderer not available).
     mapper: Option<Arc<Mapper>>,
     /// Renderer for PERCEIVE requests (None if not available).
@@ -65,6 +70,7 @@ impl Server {
             shutdown: Arc::new(Notify::new()),
             seen_ids: Arc::new(Mutex::new(HashSet::new())),
             maps: Arc::new(RwLock::new(HashMap::new())),
+            sessions: Arc::new(RwLock::new(HashMap::new())),
             mapper: None,
             renderer: None,
         }
@@ -100,6 +106,7 @@ impl Server {
             started_at: self.started_at,
             seen_ids: Arc::clone(&self.seen_ids),
             maps: Arc::clone(&self.maps),
+            sessions: Arc::clone(&self.sessions),
             mapper: self.mapper.clone(),
             renderer: self.renderer.clone(),
         });
@@ -350,6 +357,7 @@ async fn handle_request(req: protocol::Request, state: Arc<SharedState>) -> Stri
         Method::Query => handle_query(&req, Arc::clone(&state)).await,
         Method::Pathfind => handle_pathfind(&req, Arc::clone(&state)).await,
         Method::Perceive => handle_perceive(&req, Arc::clone(&state)).await,
+        Method::Auth => handle_auth(&req, Arc::clone(&state)).await,
         Method::Refresh | Method::Act | Method::Watch => protocol::format_error(
             &req.id,
             "E_NOT_IMPLEMENTED",
@@ -997,6 +1005,120 @@ async fn handle_perceive(req: &protocol::Request, state: Arc<SharedState>) -> St
             )
         }
     }
+}
+
+/// Handle an AUTH request: authenticate with a site and store the session.
+///
+/// Supports `"api_key"` and `"bearer"` auth types synchronously, and
+/// `"password"` via async form-based login.
+async fn handle_auth(req: &protocol::Request, state: Arc<SharedState>) -> String {
+    let domain = match req.params.get("domain").and_then(|v| v.as_str()) {
+        Some(d) if !d.is_empty() => d.to_string(),
+        _ => {
+            return protocol::format_error(
+                &req.id,
+                "E_INVALID_PARAMS",
+                "Missing or empty 'domain' parameter",
+            );
+        }
+    };
+
+    let auth_type = req
+        .params
+        .get("auth_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("bearer");
+
+    let session = match auth_type {
+        "api_key" => {
+            let key = match req.params.get("key").and_then(|v| v.as_str()) {
+                Some(k) => k,
+                None => {
+                    return protocol::format_error(
+                        &req.id,
+                        "E_INVALID_PARAMS",
+                        "Missing 'key' parameter for api_key auth",
+                    );
+                }
+            };
+            let header = req
+                .params
+                .get("header_name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("X-Api-Key");
+            crate::acquisition::auth::login_api_key(&domain, key, header)
+        }
+        "bearer" => {
+            let token = match req.params.get("token").and_then(|v| v.as_str()) {
+                Some(t) => t,
+                None => {
+                    return protocol::format_error(
+                        &req.id,
+                        "E_INVALID_PARAMS",
+                        "Missing 'token' parameter for bearer auth",
+                    );
+                }
+            };
+            crate::acquisition::auth::login_bearer(&domain, token)
+        }
+        "password" => {
+            let username = match req.params.get("username").and_then(|v| v.as_str()) {
+                Some(u) => u,
+                None => {
+                    return protocol::format_error(
+                        &req.id,
+                        "E_INVALID_PARAMS",
+                        "Missing 'username' parameter for password auth",
+                    );
+                }
+            };
+            let password = match req.params.get("password").and_then(|v| v.as_str()) {
+                Some(p) => p,
+                None => {
+                    return protocol::format_error(
+                        &req.id,
+                        "E_INVALID_PARAMS",
+                        "Missing 'password' parameter for password auth",
+                    );
+                }
+            };
+            let client = crate::acquisition::http_client::HttpClient::new(15_000);
+            match crate::acquisition::auth::login_password(&client, &domain, username, password)
+                .await
+            {
+                Ok(s) => s,
+                Err(e) => {
+                    return protocol::format_error(
+                        &req.id,
+                        "E_AUTH_FAILED",
+                        &format!("Password login failed for {domain}: {e}"),
+                    );
+                }
+            }
+        }
+        other => {
+            return protocol::format_error(
+                &req.id,
+                "E_INVALID_PARAMS",
+                &format!("Unknown auth_type '{other}'. Supported: api_key, bearer, password"),
+            );
+        }
+    };
+
+    let session_id = session.session_id.clone();
+    let sessions_lock = Arc::clone(&state.sessions);
+    let mut sessions = sessions_lock.write().await;
+    sessions.insert(session_id.clone(), session);
+    drop(sessions);
+
+    protocol::format_response(
+        &req.id,
+        serde_json::json!({
+            "session_id": session_id,
+            "domain": domain,
+            "auth_type": auth_type,
+        }),
+    )
 }
 
 /// Simple regex-free link extraction from HTML for fallback code.

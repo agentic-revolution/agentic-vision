@@ -6,9 +6,11 @@
 
 pub mod action_discovery;
 pub mod api_discovery;
+pub mod auth;
 pub mod feed_parser;
 pub mod head_scanner;
 pub mod http_client;
+pub mod http_session;
 pub mod js_analyzer;
 pub mod pattern_engine;
 pub mod structured;
