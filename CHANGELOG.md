@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.4.5 (2026-02-18)
+
+### Live Visibility — Event Bus, Streaming Progress, Web Dashboard
+
+Users now see what Cortex is doing in real-time, whether they're in Claude, Cursor, a browser, or the terminal.
+
+- **Event Bus** (`events.rs`): 17 typed `CortexEvent` variants covering mapping, actions, auth, queries, and system lifecycle. Backed by `tokio::sync::broadcast` — zero overhead when nobody's listening
+- **Progress Infrastructure** (`progress.rs`): Granular mapper telemetry with layer-by-layer progress events (`L0Metadata` through `L3Browser`)
+- **Server-Sent Events**: `GET /api/v1/events` streams real-time events to any consumer with optional `?domain=` filtering
+- **Web Dashboard**: `http://localhost:7700/dashboard` — mission control with live activity feed, per-operation progress bars, connected agents, cached maps, and session stats. One HTML file, zero dependencies, embedded in binary
+- **Enhanced Status**: `GET /api/v1/status` returns rich data: maps list with per-map details, node counts, uptime, chromium availability
+- **CLI Streaming**: `cortex map` now shows live layer-by-layer progress (Layer 0 Metadata, Layer 1 Structured Data, etc.) via SSE
+- **Full Instrumentation**: Every MAP/QUERY/PATHFIND/AUTH operation emits typed events with timing data
+
 ## v0.4.4 (2026-02-18)
 
 ### Interactive REPL — Claude Code-Style Terminal UI
