@@ -78,5 +78,98 @@
     "auth_login": ["sign in", "log in", "login", "signin"],
     "form_subscribe": ["subscribe", "sign up", "signup", "register", "join", "enroll"],
     "nav_search": ["search", "find", "look up", "discover"]
+  },
+  "image": {
+    "data_attributes": [
+      "[data-image]",
+      "[data-src]",
+      "[data-lazy]",
+      "[data-original]"
+    ],
+    "data_attr_names": ["data-image", "data-src", "data-lazy", "data-original"],
+    "itemprop": "[itemprop=\"image\"]",
+    "selectors": [
+      ".product-image",
+      ".product-photo",
+      ".gallery-image",
+      ".item-image",
+      ".hero-image",
+      "img.primary",
+      "[class*=\"product\"] img",
+      "[class*=\"gallery\"] img",
+      ".thumbnail img"
+    ]
+  },
+  "description": {
+    "data_attributes": [
+      "[data-description]",
+      "[data-content]"
+    ],
+    "data_attr_names": ["data-description", "data-content"],
+    "itemprop": "[itemprop=\"description\"]",
+    "selectors": [
+      ".product-description",
+      ".item-description",
+      ".description",
+      ".product-details",
+      ".content-body",
+      ".article-body",
+      ".post-content",
+      ".entry-content",
+      "[class*=\"description\"]",
+      "[class*=\"details\"] p"
+    ]
+  },
+  "navigation": {
+    "selectors": [
+      "nav a",
+      ".nav-item a",
+      ".navbar a",
+      ".breadcrumb a",
+      ".menu a",
+      ".sidebar a",
+      "[role=\"navigation\"] a",
+      ".main-menu a",
+      ".header-nav a"
+    ]
+  },
+  "form": {
+    "selectors": [
+      "form[action]",
+      "form[method]",
+      "[role=\"search\"]",
+      ".search-form",
+      ".login-form",
+      ".signup-form",
+      ".contact-form",
+      ".newsletter-form"
+    ]
+  },
+  "button": {
+    "selectors": [
+      "button[type=\"submit\"]",
+      "input[type=\"submit\"]",
+      "[role=\"button\"]",
+      ".btn",
+      ".button",
+      ".cta",
+      "[class*=\"btn-\"]",
+      "a.button"
+    ]
+  },
+  "review_count": {
+    "data_attributes": [
+      "[data-review-count]",
+      "[data-reviews]",
+      "[data-num-reviews]"
+    ],
+    "data_attr_names": ["data-review-count", "data-reviews", "data-num-reviews"],
+    "itemprop": "[itemprop=\"reviewCount\"]",
+    "selectors": [
+      ".review-count",
+      ".reviews-count",
+      ".num-reviews",
+      "[class*=\"review\"] .count"
+    ]
   }
 }

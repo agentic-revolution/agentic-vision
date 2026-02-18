@@ -101,6 +101,20 @@ pub enum DetectedPlatform {
     Magento,
     /// BigCommerce.
     BigCommerce,
+    /// Squarespace.
+    Squarespace,
+    /// Wix.
+    Wix,
+    /// PrestaShop.
+    PrestaShop,
+    /// OpenCart.
+    OpenCart,
+    /// Next.js Commerce / Vercel storefronts.
+    NextJsCommerce,
+    /// WordPress (non-WooCommerce).
+    WordPress,
+    /// Drupal.
+    Drupal,
     /// No recognised platform.
     Unknown,
 }
@@ -376,6 +390,81 @@ pub fn discover_actions_from_js(js_source: &str, base_url: &str) -> Vec<HttpActi
         }
     }
 
+    // Pattern 5: GraphQL endpoints
+    let graphql_re =
+        Regex::new(r#"['"]([^'"]*(?:/graphql|/gql)[^'"]*)['"]"#).expect("graphql regex is valid");
+
+    for caps in graphql_re.captures_iter(js_source) {
+        let url_raw = caps.get(1).map_or("", |m| m.as_str());
+        if url_raw.is_empty() || url_raw.len() > 200 {
+            continue;
+        }
+        let url = resolve_url(base_url, url_raw);
+        let method = "POST".to_string();
+        if seen_urls.insert(format!("{method}:{url}")) {
+            actions.push(HttpAction {
+                opcode: classify_api_opcode(&url, &method),
+                label: format!("GraphQL {url_raw}"),
+                source: ActionSource::Api {
+                    url,
+                    method,
+                    body_template: Some(r#"{"query":"","variables":{}}"#.to_string()),
+                },
+                confidence: 0.75,
+            });
+        }
+    }
+
+    // Pattern 6: XMLHttpRequest open calls
+    let xhr_re = Regex::new(r#"\.open\(\s*['"](\w+)['"]\s*,\s*['"]([^'"]+)['"]"#)
+        .expect("xhr regex is valid");
+
+    for caps in xhr_re.captures_iter(js_source) {
+        let method = caps.get(1).map_or("GET", |m| m.as_str()).to_uppercase();
+        let url_raw = caps.get(2).map_or("", |m| m.as_str());
+        if url_raw.is_empty() || url_raw.len() > 200 {
+            continue;
+        }
+        let url = resolve_url(base_url, url_raw);
+        if seen_urls.insert(format!("{method}:{url}")) {
+            actions.push(HttpAction {
+                opcode: classify_api_opcode(&url, &method),
+                label: format!("{method} {url_raw}"),
+                source: ActionSource::Api {
+                    url,
+                    method,
+                    body_template: None,
+                },
+                confidence: 0.70,
+            });
+        }
+    }
+
+    // Pattern 7: REST-style versioned API paths (/v1/, /v2/, etc.)
+    let rest_v_re =
+        Regex::new(r#"['"]([^'"]*?/v[0-9]+/[^'"]+)['"]"#).expect("rest version regex is valid");
+
+    for caps in rest_v_re.captures_iter(js_source) {
+        let url_raw = caps.get(1).map_or("", |m| m.as_str());
+        if url_raw.is_empty() || url_raw.len() > 200 || !url_raw.starts_with('/') {
+            continue;
+        }
+        let url = resolve_url(base_url, url_raw);
+        let method = "GET".to_string();
+        if seen_urls.insert(format!("{method}:{url}")) {
+            actions.push(HttpAction {
+                opcode: classify_api_opcode(&url, &method),
+                label: format!("REST {url_raw}"),
+                source: ActionSource::Api {
+                    url,
+                    method,
+                    body_template: None,
+                },
+                confidence: 0.55,
+            });
+        }
+    }
+
     actions
 }
 
@@ -405,6 +494,13 @@ pub fn discover_actions_from_platform(_domain: &str, page_html: &str) -> Vec<Htt
         DetectedPlatform::WooCommerce => "woocommerce",
         DetectedPlatform::Magento => "magento",
         DetectedPlatform::BigCommerce => "bigcommerce",
+        DetectedPlatform::Squarespace => "squarespace",
+        DetectedPlatform::Wix => "wix",
+        DetectedPlatform::PrestaShop => "prestashop",
+        DetectedPlatform::OpenCart => "opencart",
+        DetectedPlatform::NextJsCommerce => "nextjs_commerce",
+        DetectedPlatform::WordPress => "wordpress",
+        DetectedPlatform::Drupal => "drupal",
         DetectedPlatform::Unknown => return Vec::new(),
     };
 
@@ -445,8 +541,20 @@ pub fn discover_actions_from_platform(_domain: &str, page_html: &str) -> Vec<Htt
 pub fn detect_platform(html: &str) -> DetectedPlatform {
     let registry = platform_registry();
 
-    // Check each platform in a deterministic order.
-    let platform_order = ["shopify", "woocommerce", "magento", "bigcommerce"];
+    // Check each platform in a deterministic order (most specific first).
+    let platform_order = [
+        "shopify",
+        "woocommerce",
+        "magento",
+        "bigcommerce",
+        "squarespace",
+        "wix",
+        "prestashop",
+        "opencart",
+        "nextjs_commerce",
+        "drupal",
+        "wordpress",
+    ];
 
     for &key in &platform_order {
         if let Some(config) = registry.get(key) {
@@ -467,6 +575,13 @@ pub fn detect_platform(html: &str) -> DetectedPlatform {
                     "woocommerce" => DetectedPlatform::WooCommerce,
                     "magento" => DetectedPlatform::Magento,
                     "bigcommerce" => DetectedPlatform::BigCommerce,
+                    "squarespace" => DetectedPlatform::Squarespace,
+                    "wix" => DetectedPlatform::Wix,
+                    "prestashop" => DetectedPlatform::PrestaShop,
+                    "opencart" => DetectedPlatform::OpenCart,
+                    "nextjs_commerce" => DetectedPlatform::NextJsCommerce,
+                    "wordpress" => DetectedPlatform::WordPress,
+                    "drupal" => DetectedPlatform::Drupal,
                     _ => DetectedPlatform::Unknown,
                 };
             }

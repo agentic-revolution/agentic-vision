@@ -17,6 +17,7 @@ pub async fn run(
     remove: bool,
     status_only: bool,
     agent: Option<&str>,
+    config_dir: Option<&str>,
 ) -> Result<()> {
     let quiet = crate::cli::output::is_quiet();
     let json_mode = crate::cli::output::is_json();
@@ -27,7 +28,11 @@ pub async fn run(
         println!();
     }
 
-    let probes = build_probes();
+    let probes = if let Some(dir) = config_dir {
+        build_test_probes(dir)
+    } else {
+        build_probes()
+    };
     let mut connected = 0u32;
     let mut needs_restart: Vec<&str> = Vec::new();
     let mut json_results: Vec<serde_json::Value> = Vec::new();
@@ -286,6 +291,81 @@ fn build_probes() -> Vec<AgentProbe> {
             detect_fn: detect_cline,
         },
     ]
+}
+
+/// Build probes that point to a test config directory instead of real agent paths.
+fn build_test_probes(config_dir: &str) -> Vec<AgentProbe> {
+    let base = PathBuf::from(config_dir);
+    // Leak the PathBuf into 'static lifetime for the fn pointers.
+    // This is fine — test mode only, process exits soon.
+    let base: &'static Path = Box::leak(base.into_boxed_path());
+
+    // We can't use fn pointers with captures, so use a global approach:
+    // create test config files for each known agent pattern.
+    let pairs: Vec<(&'static str, &'static str, &'static str, bool)> = vec![
+        (
+            "Claude Desktop",
+            "claude-desktop",
+            "claude/claude_desktop_config.json",
+            true,
+        ),
+        ("Cursor", "cursor", "cursor/mcp.json", true),
+        ("Continue", "continue", "continue/config.json", false),
+    ];
+
+    pairs
+        .into_iter()
+        .filter_map(|(name, short, rel_path, needs_restart)| {
+            let config_path = base.join(rel_path);
+            if config_path.parent()?.exists() {
+                Some(AgentProbe {
+                    name,
+                    short_name: short,
+                    needs_restart,
+                    detect_fn: {
+                        // Store the path in a leaked static so fn pointer can reference it.
+                        let p: &'static Path = Box::leak(config_path.into_boxed_path());
+                        // We need unique fn pointers per agent. Use a static array approach.
+                        match short {
+                            "claude-desktop" => {
+                                static mut TEST_PATH_CLAUDE: Option<&'static Path> = None;
+                                unsafe {
+                                    TEST_PATH_CLAUDE = Some(p);
+                                }
+                                fn detect() -> Option<PathBuf> {
+                                    unsafe { TEST_PATH_CLAUDE.map(|p| p.to_path_buf()) }
+                                }
+                                detect
+                            }
+                            "cursor" => {
+                                static mut TEST_PATH_CURSOR: Option<&'static Path> = None;
+                                unsafe {
+                                    TEST_PATH_CURSOR = Some(p);
+                                }
+                                fn detect() -> Option<PathBuf> {
+                                    unsafe { TEST_PATH_CURSOR.map(|p| p.to_path_buf()) }
+                                }
+                                detect
+                            }
+                            "continue" => {
+                                static mut TEST_PATH_CONTINUE: Option<&'static Path> = None;
+                                unsafe {
+                                    TEST_PATH_CONTINUE = Some(p);
+                                }
+                                fn detect() -> Option<PathBuf> {
+                                    unsafe { TEST_PATH_CONTINUE.map(|p| p.to_path_buf()) }
+                                }
+                                detect
+                            }
+                            _ => return None,
+                        }
+                    },
+                })
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 fn detect_claude_desktop() -> Option<PathBuf> {

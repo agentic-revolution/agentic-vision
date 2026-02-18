@@ -126,5 +126,141 @@
         "confidence": 0.85
       }
     ]
+  },
+  "squarespace": {
+    "indicators": {
+      "js_patterns": ["Squarespace.", "Static.SQUARESPACE"],
+      "html_patterns": ["squarespace.com", "sqs-block", "sqsp"]
+    },
+    "actions": [
+      {
+        "label": "Add to Cart",
+        "opcode": { "category": 2, "action": 0 },
+        "action_type": "add_to_cart",
+        "url_template": "/api/commerce/shopping-cart/entries",
+        "method": "POST",
+        "confidence": 0.80
+      },
+      {
+        "label": "Get Cart",
+        "opcode": { "category": 2, "action": 6 },
+        "action_type": "get_cart",
+        "url_template": "/api/commerce/shopping-cart",
+        "method": "GET",
+        "confidence": 0.80
+      }
+    ]
+  },
+  "wix": {
+    "indicators": {
+      "js_patterns": ["wixcode-sdk", "wix-", "Wix."],
+      "html_patterns": ["static.wixstatic.com", "wix-dropdown", "_wix_browser_sess"]
+    },
+    "actions": [
+      {
+        "label": "Add to Cart",
+        "opcode": { "category": 2, "action": 0 },
+        "action_type": "add_to_cart",
+        "url_template": "/_api/cart-server/v1/cart/current/addToCart",
+        "method": "POST",
+        "confidence": 0.80
+      },
+      {
+        "label": "Search",
+        "opcode": { "category": 1, "action": 0 },
+        "action_type": "search",
+        "url_template": "/_api/search-api/v1/search",
+        "method": "GET",
+        "confidence": 0.75
+      }
+    ]
+  },
+  "prestashop": {
+    "indicators": {
+      "js_patterns": ["prestashop", "PrestaShop"],
+      "html_patterns": ["/modules/ps_", "prestashop"]
+    },
+    "actions": [
+      {
+        "label": "Add to Cart",
+        "opcode": { "category": 2, "action": 0 },
+        "action_type": "add_to_cart",
+        "url_template": "/cart?add=1",
+        "method": "POST",
+        "confidence": 0.80
+      }
+    ]
+  },
+  "opencart": {
+    "indicators": {
+      "js_patterns": ["route=checkout/cart", "getURLVar"],
+      "html_patterns": ["route=common/home", "index.php?route="]
+    },
+    "actions": [
+      {
+        "label": "Add to Cart",
+        "opcode": { "category": 2, "action": 0 },
+        "action_type": "add_to_cart",
+        "url_template": "/index.php?route=checkout/cart/add",
+        "method": "POST",
+        "confidence": 0.80
+      }
+    ]
+  },
+  "nextjs_commerce": {
+    "indicators": {
+      "js_patterns": ["__NEXT_DATA__", "_next/static"],
+      "html_patterns": ["_next/static", "__next"]
+    },
+    "actions": [
+      {
+        "label": "Search",
+        "opcode": { "category": 1, "action": 0 },
+        "action_type": "search",
+        "url_template": "/api/search",
+        "method": "GET",
+        "confidence": 0.65
+      }
+    ]
+  },
+  "wordpress": {
+    "indicators": {
+      "js_patterns": ["wp-includes", "wp.customize"],
+      "html_patterns": ["/wp-content/", "/wp-includes/", "wp-json"]
+    },
+    "actions": [
+      {
+        "label": "Search",
+        "opcode": { "category": 1, "action": 0 },
+        "action_type": "search",
+        "url_template": "/wp-json/wp/v2/search",
+        "method": "GET",
+        "confidence": 0.75
+      },
+      {
+        "label": "Submit Comment",
+        "opcode": { "category": 3, "action": 0 },
+        "action_type": "comment",
+        "url_template": "/wp-comments-post.php",
+        "method": "POST",
+        "confidence": 0.80
+      }
+    ]
+  },
+  "drupal": {
+    "indicators": {
+      "js_patterns": ["Drupal.", "drupalSettings"],
+      "html_patterns": ["/sites/default/files", "drupal.org"]
+    },
+    "actions": [
+      {
+        "label": "Search",
+        "opcode": { "category": 1, "action": 0 },
+        "action_type": "search",
+        "url_template": "/search/node",
+        "method": "GET",
+        "confidence": 0.75
+      }
+    ]
   }
 }

@@ -70,5 +70,65 @@
     "source_id": "data-issue-key",
     "target_selector": "[data-rbd-droppable-id], .ghx-column",
     "target_id": "data-column-id"
+  },
+  "figma.com": {
+    "drag_type": "layer_move",
+    "api": {
+      "method": "POST",
+      "path": "/fig-wss/",
+      "body": {"type": "move_layer", "node_id": "{node_id}", "parent_id": "{parent_id}", "index": "{index}"}
+    },
+    "source_selector": "[data-testid='layer-row'], .layer_row",
+    "source_id": "data-layer-id",
+    "target_selector": "[data-testid='layer-row']",
+    "target_id": "data-layer-id"
+  },
+  "airtable.com": {
+    "drag_type": "row_reorder",
+    "api": {
+      "method": "POST",
+      "path": "/v0/{base_id}/{table_name}",
+      "body": {"records": [{"id": "{record_id}", "fields": {"order": "{position}"}}]}
+    },
+    "source_selector": "[data-rowindex], .dataRow",
+    "source_id": "data-rowindex",
+    "target_selector": "[data-rowindex], .dataRow",
+    "target_id": "data-rowindex"
+  },
+  "miro.com": {
+    "drag_type": "widget_move",
+    "api": {
+      "method": "PATCH",
+      "path": "/api/v2/boards/{board_id}/widgets/{widget_id}",
+      "body": {"x": "{x}", "y": "{y}"}
+    },
+    "source_selector": "[data-widget-id]",
+    "source_id": "data-widget-id",
+    "target_selector": ".board-canvas",
+    "target_id": null
+  },
+  "todoist.com": {
+    "drag_type": "task_reorder",
+    "api": {
+      "method": "POST",
+      "path": "/api/v9/sync",
+      "body": {"commands": [{"type": "item_reorder", "args": {"items": [{"id": "{task_id}", "child_order": "{order}"}]}}]}
+    },
+    "source_selector": "[data-item-id]",
+    "source_id": "data-item-id",
+    "target_selector": "[data-item-id]",
+    "target_id": "data-item-id"
+  },
+  "clickup.com": {
+    "drag_type": "task_move",
+    "api": {
+      "method": "PUT",
+      "path": "/api/v2/task/{task_id}",
+      "body": {"status": "{status}", "orderindex": "{index}"}
+    },
+    "source_selector": "[data-task-id], .cu-task-row",
+    "source_id": "data-task-id",
+    "target_selector": "[data-status-id], .cu-status-column",
+    "target_id": "data-status-id"
   }
 }

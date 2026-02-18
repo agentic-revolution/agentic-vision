@@ -1,6 +1,6 @@
 # Known Limitations
 
-Cortex v0.2 uses a layered HTTP acquisition architecture — most mapping is done without a browser. This eliminates many v0.1 limitations (bot detection, SPA shells, HTTP/2 browser errors) but introduces new ones.
+Cortex v0.4 uses a layered HTTP acquisition architecture with advanced action discovery (drag-drop, canvas, WebSocket, WebMCP). Most mapping is done without a browser. This eliminates many v0.1 limitations (bot detection, SPA shells, HTTP/2 browser errors) but introduces new ones.
 
 ## 1. Sites Without Structured Data or Useful HTML Patterns (~2-5% of sites)
 
@@ -22,9 +22,9 @@ Applications like Figma, Google Sheets, and other canvas-based tools render thei
 
 Cortex does not integrate CAPTCHA-solving services. However, CAPTCHAs are rarely triggered in v0.2 because mapping uses standard HTTP requests (not headless Chrome), which are indistinguishable from search engine crawlers.
 
-## 6. WebSocket-Based Real-Time Apps Are Not Fully Supported
+## 6. WebSocket Discovery Is Pattern-Based
 
-Applications that rely on WebSocket connections for content delivery (real-time dashboards, chat applications, collaborative editors) cannot have their dynamic content captured via HTTP GET. Static content and navigation structure are still mapped correctly.
+Cortex v0.3+ includes WebSocket endpoint discovery via known platform registries and JS source scanning. However, discovery depends on recognizable patterns (`new WebSocket(...)`, Socket.IO, SockJS, SignalR) and a curated platform list. Sites using custom WebSocket implementations without matching patterns will not have their endpoints discovered. Discovery does not execute the connection — the agent must connect separately.
 
 ## 7. Feature Vectors Are Heuristic
 
@@ -40,4 +40,16 @@ Price features (dimension 48) store raw numeric values in whatever currency the 
 
 ## 10. Platform Detection Coverage Is Incomplete
 
-The platform action database (`platform_actions.json`) currently covers Shopify, WooCommerce, Magento, and BigCommerce. Sites on other e-commerce platforms (Squarespace Commerce, Wix Stores, custom builds) will not get platform-specific action templates, though generic form-based action discovery still works.
+The platform action database (`platform_actions.json`) covers Shopify, WooCommerce, Magento, BigCommerce, Squarespace, Wix, PrestaShop, OpenCart, WordPress, Drupal, and Next.js Commerce. Sites on other platforms or custom builds will not get platform-specific action templates, though generic form-based and JS API action discovery still works.
+
+## 11. WebMCP Adoption Is Near-Zero
+
+WebMCP (`navigator.modelContext`) is a new standard for exposing site capabilities as MCP tools. Cortex v0.4 includes detection and execution support, but as of early 2026, virtually no production sites have adopted WebMCP. The detection mechanism is ready for when adoption increases.
+
+## 12. Live Verification Requires Chromium
+
+The `perceive` command and live page analysis require a working Chromium installation. In HTTP-only mode (when Chromium is unavailable), mapping and querying work fully, but `perceive` returns errors. Run `cortex install` to set up Chromium.
+
+## 13. Timeout-Sensitive Sites
+
+Some sites with complex sitemaps, heavy JavaScript, or slow server responses may exceed the default 30-second mapping timeout. Sites like bestbuy.com, netflix.com, and washingtonpost.com consistently require longer timeouts. Use `max_time_ms` parameter to increase the timeout for known slow sites.

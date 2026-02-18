@@ -55,7 +55,11 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Start the Cortex background process
-    Start,
+    Start {
+        /// Also start HTTP REST API on this port
+        #[arg(long)]
+        http_port: Option<u16>,
+    },
     /// Stop the Cortex background process
     Stop,
     /// Restart the Cortex background process
@@ -150,6 +154,9 @@ enum Commands {
         /// Inject into a specific agent only (e.g. "cursor", "claude-desktop")
         #[arg(long)]
         agent: Option<String>,
+        /// Override config directory for testing
+        #[arg(long)]
+        config_dir: Option<String>,
     },
 }
 
@@ -181,7 +188,7 @@ async fn main() -> Result<()> {
     }
 
     let result = match cli.command {
-        Commands::Start => cli::start::run().await,
+        Commands::Start { http_port } => cli::start::run_with_http(http_port).await,
         Commands::Stop => cli::stop::run().await,
         Commands::Restart => cli::restart_cmd::run().await,
         Commands::Doctor => cli::doctor::run().await,
@@ -227,7 +234,17 @@ async fn main() -> Result<()> {
             remove,
             status,
             agent,
-        } => cli::plug::run(list, remove, status, agent.as_deref()).await,
+            config_dir,
+        } => {
+            cli::plug::run(
+                list,
+                remove,
+                status,
+                agent.as_deref(),
+                config_dir.as_deref(),
+            )
+            .await
+        }
     };
 
     // Consistent exit codes: 0=success, 1=error

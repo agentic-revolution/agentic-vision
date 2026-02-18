@@ -92,7 +92,11 @@ cortex/
 ├── clients/
 │   ├── python/       # Python thin client
 │   └── typescript/   # TypeScript thin client
-├── integrations/     # LangChain, CrewAI, OpenClaw
+├── integrations/
+│   ├── mcp-server/  # MCP server for Claude, Cursor, Continue, Windsurf
+│   ├── langchain/   # LangChain adapter
+│   ├── crewai/      # CrewAI adapter
+│   └── openclaw/    # OpenClaw skills
 └── docs/             # Guides and cookbooks
 ```
 
@@ -110,6 +114,8 @@ cortex/
 | `cortex install` | Download Chromium for Testing |
 | `cortex cache clear` | Clear cached maps |
 | `cortex completions <shell>` | Generate shell completions (bash/zsh/fish) |
+| `cortex plug` | Auto-discover AI agents and inject Cortex as an MCP tool |
+| `cortex start --http-port 7700` | Start with REST API on the specified port |
 
 Global flags: `--json`, `--quiet`, `--verbose`, `--no-color`
 

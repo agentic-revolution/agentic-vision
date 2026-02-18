@@ -1,5 +1,40 @@
 # Changelog
 
+## v0.4.2 (2026-02-18)
+
+### Improvements
+
+- **CLI**: `cortex plug --config-dir` flag for testing against custom configuration directories
+- **REST API**: `--http-port` flag for `cortex start` to enable the HTTP REST API
+- **Testing**: Gateway test suite, plug test suite, 100-site test harness v3
+- **Python client**: Added top-level `act()` and `compare()` functions
+
+## v0.4.1 (2026-02-18)
+
+### Major Changes — Gateway Layer
+
+- **MCP server** (`integrations/mcp-server/`): MCP tools for `cortex_map`, `cortex_query`, `cortex_pathfind`, `cortex_act`, `cortex_perceive`, `cortex_compare`, `cortex_auth`
+- **REST API** (`runtime/src/rest.rs`): HTTP endpoints for all protocol methods on configurable port
+- **OpenAPI specification** (`integrations/openapi.yaml`): Full API schema
+- **Framework adapters**: LangChain, CrewAI, OpenClaw adapters for agent integration
+- **`cortex plug` command**: Auto-discover AI agents, inject MCP server config, remove, status check
+
+## v0.4.0 (2026-02-18)
+
+### Major Changes — WebMCP Integration
+
+- **WebMCP integration** (`acquisition/webmcp.rs`): Highest-reliability action execution via `navigator.modelContext`
+- **WebMCP tool discovery**: Automatic detection of WebMCP-enabled sites
+
+## v0.3.0 (2026-02-18)
+
+### Major Changes — Advanced Actions
+
+- **Drag-and-drop discovery** via semantic API replay (`drag_discovery.rs`, `drag_platforms.json`)
+- **Canvas/WebGL state extraction** via accessibility trees and internal APIs (`canvas_extractor.rs`, `known_canvas_apis.json`)
+- **HTTP-native OAuth flow** in `auth.rs`
+- **Native WebSocket client** (`ws_discovery.rs`, `ws_platforms.json`, `live/websocket.rs`)
+
 ## v0.2.1 (2026-02-18)
 
 ### Improvements

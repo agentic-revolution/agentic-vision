@@ -9,7 +9,7 @@ use crate::server::Server;
 use anyhow::{Context, Result};
 use std::path::PathBuf;
 use std::sync::Arc;
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 /// Default socket path.
 pub const SOCKET_PATH: &str = "/tmp/cortex.sock";
@@ -46,8 +46,17 @@ pub fn check_already_running() -> Option<i32> {
     None
 }
 
+/// Start the Cortex daemon with optional REST API.
+pub async fn run_with_http(http_port: Option<u16>) -> Result<()> {
+    run_inner(http_port).await
+}
+
 /// Start the Cortex daemon: bind socket, write PID, serve requests.
 pub async fn run() -> Result<()> {
+    run_inner(None).await
+}
+
+async fn run_inner(http_port: Option<u16>) -> Result<()> {
     let s = Styled::new();
 
     // Check if already running
@@ -142,6 +151,19 @@ pub async fn run() -> Result<()> {
         info!("received shutdown signal");
         shutdown_signal.notify_one();
     });
+
+    // Optionally start REST API
+    if let Some(port) = http_port {
+        let rest_state = server.shared_state();
+        tokio::spawn(async move {
+            if let Err(e) = crate::rest::start(port, rest_state).await {
+                error!("REST API error: {e}");
+            }
+        });
+        if !output::is_quiet() {
+            eprintln!("  REST API listening on http://127.0.0.1:{port}");
+        }
+    }
 
     // Run server
     let result = server.start().await;

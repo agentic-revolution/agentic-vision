@@ -48,6 +48,8 @@ __all__ = [
     "map_many",
     "perceive",
     "perceive_many",
+    "act",
+    "compare",
     "status",
     "login",
     "login_oauth",
@@ -220,7 +222,7 @@ def map(
     """
     domain = normalize_domain(domain)
     ensure_running(socket_path)
-    conn = Connection(socket_path, timeout=timeout_ms / 1000.0)
+    conn = Connection(socket_path, timeout=(timeout_ms / 1000.0) + 15.0)
     params = protocol.map_request(
         domain,
         max_nodes=max_nodes,
@@ -545,4 +547,125 @@ def login_api_key(
         domain=result.get("domain", domain),
         auth_type=result.get("auth_type", "api_key"),
         expires_at=result.get("expires_at"),
+    )
+
+
+def act(
+    url: str,
+    opcode: tuple[int, int],
+    *,
+    params: dict[str, object] | None = None,
+    session: Session | None = None,
+    socket_path: str = DEFAULT_SOCKET_PATH,
+) -> ActResult:
+    """Execute an action on a live page.
+
+    Args:
+        url: The URL of the page to act on.
+        opcode: Action opcode as ``(category, action)`` tuple.
+        params: Optional action parameters (e.g. form values).
+        session: Optional authenticated session.
+        socket_path: Path to the Cortex Unix socket.
+
+    Returns:
+        An ActResult with success status and optional new URL/features.
+
+    Raises:
+        CortexActError: If the action fails.
+
+    Example::
+
+        result = cortex_client.act("https://amazon.com/dp/B0EXAMPLE", opcode=(0x02, 0x00))
+    """
+    ensure_running(socket_path)
+    conn = Connection(socket_path)
+    domain = normalize_domain(url)
+    req_params = protocol.act_request(
+        domain, 0, opcode, params=params,
+        session_id=session.session_id if session else None,
+    )
+    req_params["url"] = url
+    resp = conn.send("act", req_params)
+    if "error" in resp:
+        raise CortexActError(
+            resp["error"].get("message", "action failed"),
+            code=resp["error"].get("code", "E_ACT_FAILED"),
+        )
+    r = resp.get("result", {})
+    return ActResult(
+        success=r.get("success", False),
+        new_url=r.get("new_url"),
+        features=r.get("features", {}),
+    )
+
+
+@dataclass
+class CompareResult:
+    """Result of comparing multiple site maps."""
+
+    domains: list[str]
+    common_page_types: list[int]
+    unique_per_domain: dict[str, list[str]]
+    similarity_matrix: dict[str, dict[str, float]]
+
+    def __repr__(self) -> str:
+        return f"CompareResult(domains={self.domains}, common_types={len(self.common_page_types)})"
+
+
+def compare(
+    *,
+    domains: list[str],
+    limit: int = 100,
+    socket_path: str = DEFAULT_SOCKET_PATH,
+) -> CompareResult:
+    """Map and compare multiple websites.
+
+    Args:
+        domains: List of domains to map and compare.
+        limit: Maximum nodes per domain for comparison.
+        socket_path: Path to the Cortex Unix socket.
+
+    Returns:
+        A CompareResult with comparison data.
+
+    Example::
+
+        comp = cortex_client.compare(domains=["amazon.com", "bestbuy.com"], limit=10)
+    """
+    sites = map_many(domains, socket_path=socket_path)
+    common_types: set[int] = set()
+    type_sets: list[set[int]] = []
+    for s in sites:
+        nodes = s.filter(limit=limit)
+        ts = {n.page_type for n in nodes}
+        type_sets.append(ts)
+    if type_sets:
+        common_types = type_sets[0]
+        for ts in type_sets[1:]:
+            common_types &= ts
+
+    unique: dict[str, list[str]] = {}
+    for i, s in enumerate(sites):
+        others = set()
+        for j, ts in enumerate(type_sets):
+            if j != i:
+                others |= ts
+        unique[s.domain] = [str(t) for t in type_sets[i] - others]
+
+    sim: dict[str, dict[str, float]] = {}
+    for i, si in enumerate(sites):
+        sim[si.domain] = {}
+        for j, sj in enumerate(sites):
+            if i == j:
+                sim[si.domain][sj.domain] = 1.0
+            else:
+                overlap = len(type_sets[i] & type_sets[j])
+                union = len(type_sets[i] | type_sets[j]) or 1
+                sim[si.domain][sj.domain] = round(overlap / union, 3)
+
+    return CompareResult(
+        domains=[s.domain for s in sites],
+        common_page_types=sorted(common_types),
+        unique_per_domain=unique,
+        similarity_matrix=sim,
     )

@@ -17,10 +17,12 @@ This is NOT a scraper. NOT a browser automation tool. NOT a perception-per-page 
 3. **Mapping is on-demand and fast.** `cortex.map("amazon.com")` maps the site in seconds using layered HTTP acquisition: sitemap.xml + structured data extraction (JSON-LD, OpenGraph) + pattern engine (CSS selectors) + API/action discovery. Browser rendering is a last-resort fallback.
 4. **The agent works on the map, not the website.** Query, filter, pathfind — all in-memory graph operations, microseconds.
 5. **Live page visits are for verification and action only.** The agent visits 1-2 pages at the end, not dozens during exploration.
-6. **Thin client libraries** (Python, TypeScript, Rust, Go) connect to the local process via socket. ~200-500 lines each, zero dependencies.
-7. **Protocol verbs:** MAP, QUERY, PATHFIND, REFRESH, ACT, WATCH, STATUS.
-8. **No telemetry. No phoning home.** Fully local unless user configures cloud acceleration.
-9. **Apache-2.0 license.** Every file. No exceptions.
+6. **Thin client libraries** (Python, TypeScript) connect to the local process via socket. ~200-500 lines each, zero dependencies. Rust and Go clients planned.
+7. **Protocol verbs:** MAP, QUERY, PATHFIND, REFRESH, ACT, WATCH, PERCEIVE, AUTH, STATUS.
+8. **Gateway layer:** MCP server (`integrations/mcp-server/`), REST API (`runtime/src/rest.rs`), and `cortex plug` for one-command agent setup.
+9. **Advanced actions (v0.3+):** Drag-drop discovery, canvas extraction, native WebSocket, WebMCP tool execution — all without a browser.
+10. **No telemetry. No phoning home.** Fully local unless user configures cloud acceleration.
+11. **Apache-2.0 license.** Every file. No exceptions.
 
 ## Project Documents (Read In Order)
 
@@ -28,6 +30,10 @@ This is NOT a scraper. NOT a browser automation tool. NOT a perception-per-page 
 2. `docs/planning/02-map-spec.md` — Exact binary SiteMap format, protocol specification, feature vector schema (all 128 dimensions), OpCode table, page type enum, error codes, memory budgets
 3. `docs/planning/03-implementation.md` — Rust dependencies, file-by-file build order, exact function signatures, exact data structures, extraction scripts, test fixtures, CI/CD pipeline
 4. `docs/planning/04-open-source.md` — Apache-2.0 licensing, governance model, contribution guidelines, community infrastructure, README content, repo structure
+5. `docs/planning/05-edge-cases.md` — Edge case audit and UI polish
+6. `docs/06-no-browser-revolution.md` — No-browser mapping architecture (v0.2.0)
+7. `08-last-mile-inventions.md` — Drag-drop, canvas, WebSocket, WebMCP design (v0.3.0/v0.4.0)
+8. `09-one-command-takeover.md` — `cortex plug` agent auto-discovery design
 
 ## Build Commands
 
@@ -113,11 +119,11 @@ make lint                     # all lints
 **Follow `TASKS.md` exactly. Each task depends on the previous one. Do not skip ahead. Do not parallelize phases.**
 
 Phase 1 → Foundation (Rust binary, CLI, Chromium, socket server)
-Phase 2 → Cartography Engine (sitemap parser, crawler, classifier, feature encoder, map builder)
+Phase 2 → Cartography Engine (sitemap parser, acquisition engine, classifier, feature encoder, map builder)
 Phase 3 → Navigation Engine (graph queries, pathfinding, vector search, filtering)
 Phase 4 → Thin Clients (Python, TypeScript, auto-start, conformance tests)
 Phase 5 → Live Interaction (refresh, act, sessions, freshness model)
-Phase 6 → Intelligence (smart sampling, interpolation, progressive refinement, caching)
+Phase 6 → Intelligence (progressive refinement, caching, cross-site comparison)
 Phase 7 → Framework Integrations + CLI Polish
 Phase 8 → Hardening + Documentation + Release
 

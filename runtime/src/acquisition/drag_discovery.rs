@@ -117,6 +117,15 @@ fn drag_platform_registry() -> &'static DragPlatformRegistry {
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
+/// Check if a domain has a known drag-enabled platform configuration.
+pub fn has_known_drag(domain: &str) -> bool {
+    let registry = drag_platform_registry();
+    registry.contains_key(domain)
+        || registry
+            .keys()
+            .any(|k| domain.ends_with(k.as_str()) || k.contains(domain))
+}
+
 /// Discover drag-and-drop interactions from HTML and JavaScript bundles.
 ///
 /// This is the main entry point. It layers three discovery strategies:
