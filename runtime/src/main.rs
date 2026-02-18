@@ -19,6 +19,7 @@ mod navigation;
 mod pool;
 mod protocol;
 mod renderer;
+mod rest;
 mod server;
 mod stealth;
 mod trust;
@@ -135,6 +136,21 @@ enum Commands {
         /// Shell type (bash, zsh, fish, powershell)
         shell: Shell,
     },
+    /// Auto-discover AI agents and inject Cortex MCP server
+    Plug {
+        /// Show detected agents without injecting
+        #[arg(long)]
+        list: bool,
+        /// Remove Cortex from all agents
+        #[arg(long)]
+        remove: bool,
+        /// Show which agents have Cortex connected
+        #[arg(long)]
+        status: bool,
+        /// Inject into a specific agent only (e.g. "cursor", "claude-desktop")
+        #[arg(long)]
+        agent: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -206,6 +222,12 @@ async fn main() -> Result<()> {
             clap_complete::generate(shell, &mut cmd, "cortex", &mut std::io::stdout());
             Ok(())
         }
+        Commands::Plug {
+            list,
+            remove,
+            status,
+            agent,
+        } => cli::plug::run(list, remove, status, agent.as_deref()).await,
     };
 
     // Consistent exit codes: 0=success, 1=error

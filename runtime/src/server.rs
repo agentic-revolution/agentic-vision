@@ -33,14 +33,16 @@ const MAX_REQUEST_SIZE: usize = 10 * 1024 * 1024;
 const MAX_REQUESTS_PER_SEC: u32 = 100;
 
 /// Shared state passed to connection handlers.
-struct SharedState {
-    started_at: Instant,
-    seen_ids: Arc<Mutex<HashSet<String>>>,
-    maps: Arc<RwLock<HashMap<String, SiteMap>>>,
+///
+/// Made public so the REST API module can share the same dispatch state.
+pub struct SharedState {
+    pub started_at: Instant,
+    pub seen_ids: Arc<Mutex<HashSet<String>>>,
+    pub maps: Arc<RwLock<HashMap<String, SiteMap>>>,
     /// Authenticated sessions keyed by session_id.
-    sessions: Arc<RwLock<HashMap<String, HttpSession>>>,
-    mapper: Option<Arc<Mapper>>,
-    renderer: Option<Arc<dyn Renderer>>,
+    pub sessions: Arc<RwLock<HashMap<String, HttpSession>>>,
+    pub mapper: Option<Arc<Mapper>>,
+    pub renderer: Option<Arc<dyn Renderer>>,
 }
 
 /// The Cortex socket server.
@@ -86,6 +88,21 @@ impl Server {
     /// Get the shutdown notifier (for external shutdown signaling).
     pub fn shutdown_handle(&self) -> Arc<Notify> {
         Arc::clone(&self.shutdown)
+    }
+
+    /// Build a SharedState that can be shared with the REST API server.
+    ///
+    /// Both the socket server and the REST server operate on the same maps,
+    /// sessions, and dispatch logic through this shared state.
+    pub fn shared_state(&self) -> Arc<SharedState> {
+        Arc::new(SharedState {
+            started_at: self.started_at,
+            seen_ids: Arc::clone(&self.seen_ids),
+            maps: Arc::clone(&self.maps),
+            sessions: Arc::clone(&self.sessions),
+            mapper: self.mapper.clone(),
+            renderer: self.renderer.clone(),
+        })
     }
 
     /// Start accepting connections and serving requests.
@@ -314,7 +331,9 @@ async fn handle_connection(stream: tokio::net::UnixStream, state: Arc<SharedStat
 ///
 /// Takes ownership of the Request and Arc<SharedState> to avoid holding references
 /// across await points, which would prevent the future from being Send (required by tokio::spawn).
-async fn handle_request(req: protocol::Request, state: Arc<SharedState>) -> String {
+///
+/// Public so the REST API module can dispatch requests through the same handler.
+pub async fn handle_request(req: protocol::Request, state: Arc<SharedState>) -> String {
     match req.method {
         Method::Handshake => {
             let result = protocol::HandshakeResult {

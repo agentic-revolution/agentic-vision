@@ -7,6 +7,7 @@ pub mod map_cmd;
 pub mod output;
 pub mod pathfind_cmd;
 pub mod perceive_cmd;
+pub mod plug;
 pub mod query_cmd;
 pub mod restart_cmd;
 pub mod start;

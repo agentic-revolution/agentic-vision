@@ -1,0 +1,460 @@
+openapi: "3.0.3"
+info:
+  title: Cortex Web Cartographer API
+  version: "0.3.1"
+  description: |
+    REST API for the Cortex web cartography engine.
+    Map, query, pathfind, and act on any website — no browser needed.
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+  contact:
+    name: Cortex
+    url: https://github.com/cortex-ai/cortex
+
+servers:
+  - url: http://localhost:7700
+    description: Local Cortex instance
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      operationId: healthCheck
+      tags: [System]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+
+  /api/v1/status:
+    get:
+      summary: Get runtime status
+      operationId: getStatus
+      tags: [System]
+      responses:
+        "200":
+          description: Runtime status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version:
+                    type: string
+                    example: "0.1.0"
+                  uptime_seconds:
+                    type: number
+                    example: 3600.5
+                  active_contexts:
+                    type: integer
+                    example: 2
+                  cached_maps:
+                    type: integer
+                    example: 3
+                  memory_mb:
+                    type: number
+                    example: 150.2
+
+  /api/v1/map:
+    post:
+      summary: Map a website
+      operationId: mapSite
+      tags: [Mapping]
+      description: |
+        Map an entire website into a navigable binary graph.
+        Returns site structure with page types, features, and navigation edges.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [domain]
+              properties:
+                domain:
+                  type: string
+                  description: Domain to map
+                  example: "amazon.com"
+                max_nodes:
+                  type: integer
+                  default: 50000
+                max_time_ms:
+                  type: integer
+                  default: 30000
+                max_render:
+                  type: integer
+                  default: 200
+                respect_robots:
+                  type: boolean
+                  default: true
+                session_id:
+                  type: string
+                  description: Authenticated session ID
+      responses:
+        "200":
+          description: Map result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  domain:
+                    type: string
+                  node_count:
+                    type: integer
+                    example: 4521
+                  edge_count:
+                    type: integer
+                    example: 12340
+                  cached:
+                    type: boolean
+                  map_path:
+                    type: string
+                    nullable: true
+
+  /api/v1/query:
+    post:
+      summary: Search mapped pages
+      operationId: queryPages
+      tags: [Navigation]
+      description: |
+        Search a mapped site by page type, feature values, or similarity.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [domain]
+              properties:
+                domain:
+                  type: string
+                page_type:
+                  type: integer
+                  description: "Page type code (4=product, 6=article, etc.)"
+                features:
+                  type: object
+                  description: "Feature range filters keyed by dimension index"
+                  additionalProperties:
+                    type: object
+                    properties:
+                      gt:
+                        type: number
+                      lt:
+                        type: number
+                limit:
+                  type: integer
+                  default: 20
+                mode:
+                  type: string
+                  enum: [filter, nearest]
+                  default: filter
+                goal_vector:
+                  type: array
+                  items:
+                    type: number
+                  description: "128-dim vector for nearest-neighbor search"
+      responses:
+        "200":
+          description: Query results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  matches:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/NodeMatch"
+
+  /api/v1/pathfind:
+    post:
+      summary: Find navigation path
+      operationId: pathfind
+      tags: [Navigation]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [domain, from, to]
+              properties:
+                domain:
+                  type: string
+                from:
+                  type: integer
+                to:
+                  type: integer
+                minimize:
+                  type: string
+                  enum: [hops, weight, state_changes]
+                  default: hops
+      responses:
+        "200":
+          description: Path result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nodes:
+                    type: array
+                    items:
+                      type: integer
+                  total_weight:
+                    type: number
+                  hops:
+                    type: integer
+                  required_actions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        at_node:
+                          type: integer
+                        opcode:
+                          type: array
+                          items:
+                            type: integer
+
+  /api/v1/act:
+    post:
+      summary: Execute action on webpage
+      operationId: executeAction
+      tags: [Actions]
+      description: |
+        Execute an action on a website — add to cart, submit form, search, etc.
+        Prefers HTTP execution (no browser).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [domain, node, opcode]
+              properties:
+                domain:
+                  type: string
+                node:
+                  type: integer
+                opcode:
+                  type: string
+                params:
+                  type: object
+      responses:
+        "200":
+          description: Action result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  new_url:
+                    type: string
+                  features:
+                    type: object
+
+  /api/v1/perceive:
+    post:
+      summary: Perceive a single page
+      operationId: perceivePage
+      tags: [Actions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url:
+                  type: string
+                  example: "https://example.com/product/123"
+                include_content:
+                  type: boolean
+                  default: true
+      responses:
+        "200":
+          description: Page perception result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                  final_url:
+                    type: string
+                  page_type:
+                    type: integer
+                  confidence:
+                    type: number
+                  features:
+                    type: object
+                  content:
+                    type: string
+                    nullable: true
+                  load_time_ms:
+                    type: integer
+
+  /api/v1/compare:
+    post:
+      summary: Compare across sites
+      operationId: compareSites
+      tags: [Navigation]
+      description: |
+        Compare products, articles, or pages across multiple mapped sites.
+        Maps all sites if not cached, then queries all maps.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [domains]
+              properties:
+                domains:
+                  type: array
+                  items:
+                    type: string
+                page_type:
+                  type: string
+                sort_by:
+                  type: string
+                  enum: [price_asc, price_desc, rating_desc, review_count_desc]
+                filters:
+                  type: object
+                limit:
+                  type: integer
+                  default: 10
+      responses:
+        "200":
+          description: Comparison results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        domain:
+                          type: string
+                        url:
+                          type: string
+                        features:
+                          type: object
+
+  /api/v1/auth:
+    post:
+      summary: Authenticate with site
+      operationId: authenticate
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [domain, auth_type]
+              properties:
+                domain:
+                  type: string
+                auth_type:
+                  type: string
+                  enum: [password, oauth, api_key, bearer]
+                username:
+                  type: string
+                password:
+                  type: string
+                key:
+                  type: string
+                token:
+                  type: string
+                header_name:
+                  type: string
+                  default: "X-Api-Key"
+      responses:
+        "200":
+          description: Authentication result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_id:
+                    type: string
+                  domain:
+                    type: string
+                  auth_type:
+                    type: string
+
+  /api/v1/maps:
+    get:
+      summary: List cached maps
+      operationId: listMaps
+      tags: [System]
+      responses:
+        "200":
+          description: Cached maps
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  maps:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        domain:
+                          type: string
+                        node_count:
+                          type: integer
+                        edge_count:
+                          type: integer
+
+components:
+  schemas:
+    NodeMatch:
+      type: object
+      properties:
+        index:
+          type: integer
+        url:
+          type: string
+        page_type:
+          type: integer
+        confidence:
+          type: number
+        features:
+          type: object
+          additionalProperties:
+            type: number
+        similarity:
+          type: number
+          nullable: true
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string

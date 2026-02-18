@@ -1,0 +1,227 @@
+// Copyright 2026 Cortex Contributors
+// SPDX-License-Identifier: Apache-2.0
+
+//! HTTP REST API for Cortex.
+//!
+//! Provides a REST interface alongside the Unix socket server.
+//! Every REST endpoint maps 1:1 to a protocol method, using the
+//! same [`SharedState`] and [`handle_request`] dispatch.
+
+use crate::protocol;
+use crate::server::{handle_request, SharedState};
+use axum::extract::State;
+use axum::routing::{get, post};
+use axum::{Json, Router};
+use serde_json::Value;
+use std::sync::Arc;
+use tower_http::cors::{Any, CorsLayer};
+
+/// Wrapper to assert a future is Send.
+///
+/// Same technique as in `server.rs` — the `handle_request` future contains
+/// only Send types but the compiler cannot prove it due to higher-ranked
+/// lifetime bounds in transitive dependencies (scraper, chromiumoxide).
+struct AssertSend<F>(F);
+
+// SAFETY: All concrete types in handle_request are Send. See server.rs
+// for the full justification.
+unsafe impl<F: std::future::Future> Send for AssertSend<F> {}
+
+impl<F: std::future::Future> std::future::Future for AssertSend<F> {
+    type Output = F::Output;
+    fn poll(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Self::Output> {
+        let inner = unsafe { self.map_unchecked_mut(|s| &mut s.0) };
+        inner.poll(cx)
+    }
+}
+
+/// Build the axum Router with all REST endpoints.
+pub fn router(state: Arc<SharedState>) -> Router {
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
+    Router::new()
+        .route("/health", get(health))
+        .route("/api/v1/status", get(handle_status))
+        .route("/api/v1/map", post(handle_map))
+        .route("/api/v1/query", post(handle_query))
+        .route("/api/v1/pathfind", post(handle_pathfind))
+        .route("/api/v1/act", post(handle_act))
+        .route("/api/v1/perceive", post(handle_perceive))
+        .route("/api/v1/compare", post(handle_compare))
+        .route("/api/v1/auth", post(handle_auth))
+        .route("/api/v1/maps", get(handle_list_maps))
+        .layer(cors)
+        .with_state(state)
+}
+
+/// Start the REST API server on the given port.
+///
+/// This runs concurrently with the Unix socket server and shares the
+/// same internal state. Shut down by dropping the returned future.
+pub async fn start(port: u16, state: Arc<SharedState>) -> anyhow::Result<()> {
+    let app = router(state);
+    let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
+    tracing::info!("REST API listening on http://{addr}");
+
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    axum::serve(listener, app).await?;
+    Ok(())
+}
+
+// ── Helpers ─────────────────────────────────────────────────────
+
+/// Dispatch a REST request through the Cortex protocol handler.
+///
+/// Wraps the JSON body as a protocol request and calls the same
+/// `handle_request` function used by the socket server.
+async fn dispatch(method: &str, params: Value, state: Arc<SharedState>) -> Json<Value> {
+    let id = format!("rest-{}", uuid_simple());
+    let req_json = serde_json::json!({
+        "id": id,
+        "method": method,
+        "params": params,
+    });
+
+    // Parse through the protocol layer (validates structure)
+    let req = match protocol::parse_request(&req_json.to_string()) {
+        Ok(r) => r,
+        Err(e) => {
+            return Json(serde_json::json!({
+                "error": { "code": "E_INVALID_PARAMS", "message": e.to_string() }
+            }));
+        }
+    };
+
+    // Use AssertSend + spawn to satisfy axum's Send requirement.
+    // handle_request is actually Send — see server.rs for justification.
+    let response_str = {
+        let fut = AssertSend(handle_request(req, state));
+        tokio::task::spawn(fut).await.unwrap_or_else(|e| {
+            serde_json::json!({
+                "error": { "code": "E_INTERNAL", "message": format!("task panicked: {e}") }
+            })
+            .to_string()
+        })
+    };
+
+    // Parse the response string back to JSON
+    match serde_json::from_str::<Value>(&response_str) {
+        Ok(mut v) => {
+            // Strip the protocol "id" field for cleaner REST responses
+            if let Some(obj) = v.as_object_mut() {
+                obj.remove("id");
+            }
+            // Flatten: if there's a "result" key, return its contents directly
+            if let Some(result) = v.get("result").cloned() {
+                Json(result)
+            } else {
+                Json(v)
+            }
+        }
+        Err(_) => Json(serde_json::json!({
+            "error": { "code": "E_INTERNAL", "message": "Failed to parse internal response" }
+        })),
+    }
+}
+
+/// Simple monotonic ID generator (no external crate needed).
+fn uuid_simple() -> String {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static COUNTER: AtomicU64 = AtomicU64::new(1);
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    format!("{ts:x}-{n}")
+}
+
+// ── Handlers ────────────────────────────────────────────────────
+
+async fn health() -> Json<Value> {
+    Json(serde_json::json!({ "status": "ok" }))
+}
+
+async fn handle_status(State(state): State<Arc<SharedState>>) -> Json<Value> {
+    dispatch("status", serde_json::json!({}), state).await
+}
+
+async fn handle_map(State(state): State<Arc<SharedState>>, Json(body): Json<Value>) -> Json<Value> {
+    dispatch("map", body, state).await
+}
+
+async fn handle_query(
+    State(state): State<Arc<SharedState>>,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    dispatch("query", body, state).await
+}
+
+async fn handle_pathfind(
+    State(state): State<Arc<SharedState>>,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    dispatch("pathfind", body, state).await
+}
+
+async fn handle_act(State(state): State<Arc<SharedState>>, Json(body): Json<Value>) -> Json<Value> {
+    dispatch("act", body, state).await
+}
+
+async fn handle_perceive(
+    State(state): State<Arc<SharedState>>,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    dispatch("perceive", body, state).await
+}
+
+async fn handle_compare(
+    State(state): State<Arc<SharedState>>,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    // Compare is a composite: map multiple domains then query across them
+    // For now, treat it like a map request — the full compare logic
+    // can be added when the protocol supports it natively.
+    dispatch("map", body, state).await
+}
+
+async fn handle_auth(
+    State(state): State<Arc<SharedState>>,
+    Json(body): Json<Value>,
+) -> Json<Value> {
+    dispatch("auth", body, state).await
+}
+
+async fn handle_list_maps(State(state): State<Arc<SharedState>>) -> Json<Value> {
+    let maps = state.maps.read().await;
+    let list: Vec<Value> = maps
+        .iter()
+        .map(|(domain, sitemap)| {
+            serde_json::json!({
+                "domain": domain,
+                "node_count": sitemap.nodes.len(),
+                "edge_count": sitemap.edges.len(),
+            })
+        })
+        .collect();
+    drop(maps);
+    Json(serde_json::json!({ "maps": list }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_uuid_simple_unique() {
+        let a = uuid_simple();
+        let b = uuid_simple();
+        assert_ne!(a, b);
+    }
+}

@@ -51,7 +51,7 @@ impl HttpClient {
     pub fn new(timeout_ms: u64) -> Self {
         let ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) \
                   AppleWebKit/537.36 (KHTML, like Gecko) \
-                  Chrome/131.0.0.0 Safari/537.36";
+                  Chrome/145.0.0.0 Safari/537.36";
 
         let client = reqwest::Client::builder()
             .timeout(Duration::from_millis(timeout_ms))
