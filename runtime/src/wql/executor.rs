@@ -451,7 +451,7 @@ mod tests {
         let plan = planner::plan(&query, None).unwrap();
         let rows = execute(&plan, &maps).unwrap();
 
-        assert!(rows.len() > 0, "should find products across domains");
+        assert!(!rows.is_empty(), "should find products across domains");
 
         let domains: std::collections::HashSet<&str> =
             rows.iter().map(|r| r.domain.as_str()).collect();

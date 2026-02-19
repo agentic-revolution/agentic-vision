@@ -441,8 +441,8 @@ fn test_v1_privacy_before_sharing() {
 
     // Inject session data into features
     for features in &mut map.features {
-        for dim in 112..FEATURE_DIM {
-            features[dim] = 42.0;
+        for val in features[112..FEATURE_DIM].iter_mut() {
+            *val = 42.0;
         }
     }
 
@@ -450,10 +450,12 @@ fn test_v1_privacy_before_sharing() {
 
     // All session features should be zeroed
     for features in &map.features {
-        for dim in 112..FEATURE_DIM {
+        for (i, val) in features[112..FEATURE_DIM].iter().enumerate() {
             assert_eq!(
-                features[dim], 0.0,
-                "session dim {dim} must be stripped before sharing"
+                *val,
+                0.0,
+                "session dim {} must be stripped before sharing",
+                112 + i
             );
         }
     }

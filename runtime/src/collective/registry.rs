@@ -377,10 +377,8 @@ mod tests {
 
         // GC should work without errors (keep only 1 delta per domain)
         let cleaned = registry.gc(1).unwrap();
-        assert!(
-            cleaned == 0 || cleaned > 0,
-            "gc should report cleaned count"
-        );
+        // GC returns a count — any non-negative value is valid
+        let _ = cleaned;
     }
 
     #[test]

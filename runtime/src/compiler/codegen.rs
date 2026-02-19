@@ -495,7 +495,7 @@ mod tests {
         let tools = parsed.get("tools").expect("should have tools array");
         assert!(tools.is_array());
         assert!(
-            tools.as_array().unwrap().len() >= 1,
+            !tools.as_array().unwrap().is_empty(),
             "should have at least 1 tool"
         );
 

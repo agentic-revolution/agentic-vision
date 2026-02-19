@@ -581,7 +581,10 @@ def act(
     conn = Connection(socket_path)
     domain = normalize_domain(url)
     req_params = protocol.act_request(
-        domain, 0, opcode, params=params,
+        domain,
+        0,
+        opcode,
+        params=params,
         session_id=session.session_id if session else None,
     )
     req_params["url"] = url

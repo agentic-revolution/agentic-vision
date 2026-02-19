@@ -50,7 +50,7 @@ rand = "0.8"
 base64 = "0.22"
 which = "8.0.0"
 scraper = "0.20"
-tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
 axum = { version = "0.7", features = ["json"] }
 tower-http = { version = "0.6", features = ["cors"] }
 async-stream = "0.3"

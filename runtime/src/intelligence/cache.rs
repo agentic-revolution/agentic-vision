@@ -303,10 +303,11 @@ mod tests {
     #[test]
     fn test_cache_expiry() {
         let dir = tempfile::tempdir().unwrap();
-        let mut cache = MapCache::new(dir.path().to_path_buf(), Duration::from_secs(0)).unwrap();
+        let mut cache = MapCache::new(dir.path().to_path_buf(), Duration::from_millis(1)).unwrap();
 
         cache.put("test.com", b"test data").unwrap();
-        // With 0-second TTL, entry is immediately expired
+        // Sleep past the TTL to guarantee expiry
+        std::thread::sleep(Duration::from_millis(5));
         assert!(cache.get("test.com").is_none());
     }
 

@@ -16,19 +16,17 @@ use tempfile::TempDir;
 /// Build a synthetic e-commerce map with N product nodes.
 fn build_ecommerce_map(domain: &str, num_products: usize) -> SiteMap {
     let mut builder = SiteMapBuilder::new(domain);
-    let mut next_idx: u32 = 0;
-
     // Home page (index 0)
     let mut home_feats = [0.0f32; 128];
     home_feats[0] = 0.95;
     home_feats[80] = 1.0;
     home_feats[64] = 50.0;
-    next_idx = builder.add_node(
+    let _ = builder.add_node(
         &format!("https://{domain}/"),
         PageType::Home,
         home_feats,
         242,
-    ) + 1;
+    );
 
     // Category pages
     let categories = ["electronics", "clothing", "books", "home", "sports"];
@@ -51,7 +49,7 @@ fn build_ecommerce_map(domain: &str, num_products: usize) -> SiteMap {
         if i > 0 {
             builder.add_edge(idx, idx - 1, EdgeType::Navigation, 2, EdgeFlags::default());
         }
-        next_idx = idx + 1;
+        let _ = idx;
     }
 
     // Product pages
@@ -84,7 +82,7 @@ fn build_ecommerce_map(domain: &str, num_products: usize) -> SiteMap {
             let related = cat_indices[(i + 1) % categories.len()];
             builder.add_edge(idx, related, EdgeType::Related, 2, EdgeFlags::default());
         }
-        next_idx = idx + 1;
+        let _ = idx;
     }
 
     // Cart + Checkout
@@ -223,7 +221,7 @@ fn bench_query_performance() {
                 .enumerate()
                 .filter(|(i, n)| {
                     n.page_type == PageType::ProductDetail
-                        && map.features.get(*i).map_or(false, |f| f[48] < 500.0)
+                        && map.features.get(*i).is_some_and(|f| f[48] < 500.0)
                 })
                 .take(20)
                 .collect();
@@ -542,7 +540,7 @@ fn bench_real_map_stats() {
     for entry in std::fs::read_dir(&cache_dir).unwrap() {
         let entry = entry.unwrap();
         let path = entry.path();
-        if path.extension().map_or(false, |e| e == "ctx") {
+        if path.extension().is_some_and(|e| e == "ctx") {
             let data = std::fs::read(&path).unwrap();
             let map = SiteMap::deserialize(&data).unwrap();
             let domain = &map.header.domain;

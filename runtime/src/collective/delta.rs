@@ -500,8 +500,8 @@ mod tests {
         let mut builder = SiteMapBuilder::new("test.com");
         let mut feats = [0.0f32; FEATURE_DIM];
         // Set all session features (dims 112-127)
-        for dim in 112..=127 {
-            feats[dim] = (dim - 111) as f32;
+        for (i, val) in feats[112..=127].iter_mut().enumerate() {
+            *val = (i + 1) as f32;
         }
         // Also set auth area flag
         feats[FEAT_IS_AUTH_AREA] = 1.0;
