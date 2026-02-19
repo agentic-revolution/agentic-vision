@@ -21,7 +21,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "vision": {
       "command": "agentic-vision-mcp",
-      "args": ["serve", "--vision", "~/vision.avis"]
+      "args": ["--vision", "~/.vision.avis", "serve"]
     }
   }
 }
@@ -36,7 +36,7 @@ Add to `.vscode/settings.json`:
   "mcp.servers": {
     "agentic-vision": {
       "command": "agentic-vision-mcp",
-      "args": ["serve", "--vision", "${workspaceFolder}/.vision/project.avis"]
+      "args": ["--vision", "${workspaceFolder}/.vision/project.avis", "serve"]
     }
   }
 }
@@ -51,11 +51,13 @@ Add to `~/.codeium/windsurf/mcp_config.json`:
   "mcpServers": {
     "vision": {
       "command": "agentic-vision-mcp",
-      "args": ["serve", "--vision", "~/vision.avis"]
+      "args": ["--vision", "~/.vision.avis", "serve"]
     }
   }
 }
 ```
+
+> **Do not use `/tmp` for vision files** — macOS and Linux clear this directory periodically. Use `~/.vision.avis` for persistent storage.
 
 ### Verify
 
@@ -104,11 +106,11 @@ AgenticVision links to [AgenticMemory](https://github.com/xeo-labs/agentic-memor
   "mcpServers": {
     "memory": {
       "command": "agentic-memory-mcp",
-      "args": ["serve", "--memory", "~/brain.amem"]
+      "args": ["--memory", "~/.brain.amem", "serve"]
     },
     "vision": {
       "command": "agentic-vision-mcp",
-      "args": ["serve", "--vision", "~/vision.avis"]
+      "args": ["--vision", "~/.vision.avis", "serve"]
     }
   }
 }
@@ -206,13 +208,13 @@ Check that the binary is accessible:
 
 ```bash
 which agentic-vision-mcp
-agentic-vision-mcp serve --vision /tmp/test.avis
+agentic-vision-mcp serve --vision ~/.vision.avis
 ```
 
 The server communicates via stdin/stdout (MCP stdio transport). If running manually, send a JSON-RPC initialize request to verify:
 
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | agentic-vision-mcp serve --vision /tmp/test.avis
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | agentic-vision-mcp serve --vision ~/.vision.avis
 ```
 
 ### macOS: "can't be opened because Apple cannot check it for malicious software"

@@ -150,13 +150,15 @@ cargo install agentic-vision
   "mcpServers": {
     "vision": {
       "command": "agentic-vision-mcp",
-      "args": ["serve", "--vision", "~/vision.avis"]
+      "args": ["--vision", "~/.vision.avis", "serve"]
     }
   }
 }
 ```
 
 > See [INSTALL.md](INSTALL.md) for full installation guide, VS Code / Cursor configuration, build from source, and troubleshooting.
+
+> **Do not use `/tmp` for vision files** — macOS and Linux clear this directory periodically. Use `~/.vision.avis` for persistent storage.
 
 ---
 
@@ -261,7 +263,7 @@ Configure Claude Desktop (`~/Library/Application Support/Claude/claude_desktop_c
   "mcpServers": {
     "vision": {
       "command": "agentic-vision-mcp",
-      "args": ["serve", "--vision", "~/vision.avis"]
+      "args": ["--vision", "~/.vision.avis", "serve"]
     }
   }
 }

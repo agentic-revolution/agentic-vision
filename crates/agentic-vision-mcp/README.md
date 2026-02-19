@@ -24,7 +24,7 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
   "mcpServers": {
     "vision": {
       "command": "agentic-vision-mcp",
-      "args": ["serve", "--vision", "~/vision.avis"]
+      "args": ["--vision", "~/.vision.avis", "serve"]
     }
   }
 }
@@ -39,11 +39,13 @@ Add to `.vscode/settings.json`:
   "mcp.servers": {
     "vision": {
       "command": "agentic-vision-mcp",
-      "args": ["serve", "--vision", "${workspaceFolder}/.vision/project.avis"]
+      "args": ["--vision", "${workspaceFolder}/.vision/project.avis", "serve"]
     }
   }
 }
 ```
+
+> **Do not use `/tmp` for vision files** — macOS and Linux clear this directory periodically. Use `~/.vision.avis` for persistent storage.
 
 ## MCP Surface Area
 
