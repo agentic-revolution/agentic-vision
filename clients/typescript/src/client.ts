@@ -6,7 +6,7 @@
  *
  * @example
  * ```typescript
- * import { map } from "@cortex-ai/client";
+ * import { map } from "cortex-web-client";
  *
  * const site = await map("amazon.com");
  * const products = await site.filter({ pageType: 0x04, limit: 5 });

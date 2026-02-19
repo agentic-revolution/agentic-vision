@@ -254,14 +254,14 @@ except CortexMapError as e:
 ## TypeScript Client
 
 ```bash
-npm install @cortex-ai/client
+npm install cortex-web-client
 ```
 
 ### `map(domain, options?)`
 
 ```typescript
-import { map, mapMany, perceive, status } from "@cortex-ai/client";
-import type { SiteMapClient, NodeMatch, MapOptions } from "@cortex-ai/client";
+import { map, mapMany, perceive, status } from "cortex-web-client";
+import type { SiteMapClient, NodeMatch, MapOptions } from "cortex-web-client";
 
 const site = await map("amazon.com");
 const site = await map("amazon.com", { maxNodes: 10000, timeoutMs: 60000 });
@@ -318,7 +318,7 @@ console.log(info.cached_maps, info.uptime);
 ### Error Handling
 
 ```typescript
-import { CortexConnectionError, CortexMapError } from "@cortex-ai/client";
+import { CortexConnectionError, CortexMapError } from "cortex-web-client";
 
 try {
   const site = await map("example.com");

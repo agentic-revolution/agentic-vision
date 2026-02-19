@@ -110,11 +110,11 @@ result = cortex_client.compare(["amazon.com", "ebay.com", "walmart.com"])
 ## 6. Use from TypeScript
 
 ```bash
-npm install @cortex-ai/client
+npm install cortex-web-client
 ```
 
 ```typescript
-import { map } from "@cortex-ai/client";
+import { map } from "cortex-web-client";
 
 const site = await map("amazon.com");
 console.log(`Mapped ${site.nodeCount} pages, ${site.edgeCount} links`);

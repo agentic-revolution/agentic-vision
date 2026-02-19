@@ -39,7 +39,7 @@ First stable release. All packages at v1.0.0. 397 tests passing. 100-site benchm
 
 **Clients**
 - Python client (`cortex-agent`): map, filter, pathfind, similar, perceive, compare, login, WQL
-- TypeScript client (`@cortex-ai/client`): map, filter, pathfind, similar, perceive, status
+- TypeScript client (`cortex-web-client`): map, filter, pathfind, similar, perceive, status
 
 **Documentation**
 - Research paper: 10 pages, 8 figures, 13 tables, 22 references (all real benchmark data)

@@ -92,7 +92,7 @@ print(f"Path: {path.hops} hops, {len(path.required_actions)} actions needed")
 ## Use from TypeScript
 
 ```typescript
-import { map } from '@cortex-ai/client';
+import { map } from 'cortex-web-client';
 
 const site = await map('example.com');
 const results = await site.filter({ pageType: 4, limit: 10 });

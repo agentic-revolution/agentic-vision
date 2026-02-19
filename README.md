@@ -5,7 +5,7 @@
 <p align="center">
   <a href="#install"><img src="https://img.shields.io/badge/cargo_install-cortex--runtime-F59E0B?style=for-the-badge&logo=rust&logoColor=white" alt="cargo install"></a>
   <a href="#install"><img src="https://img.shields.io/badge/pip_install-cortex--agent-3B82F6?style=for-the-badge&logo=python&logoColor=white" alt="pip install"></a>
-  <a href="#install"><img src="https://img.shields.io/badge/npm_install-@cortex--ai/client-22C55E?style=for-the-badge&logo=npm&logoColor=white" alt="npm install"></a>
+  <a href="#install"><img src="https://img.shields.io/badge/npm_install-cortex--web--client-22C55E?style=for-the-badge&logo=npm&logoColor=white" alt="npm install"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-8B5CF6?style=for-the-badge" alt="Apache 2.0 License"></a>
   <a href="publication/cortex-paper.pdf"><img src="https://img.shields.io/badge/Research-Paper-EF4444?style=for-the-badge" alt="Research Paper"></a>
 </p>
@@ -205,7 +205,7 @@ pip install cortex-agent
 
 **TypeScript client:**
 ```bash
-npm install @cortex-ai/client
+npm install cortex-web-client
 ```
 
 **Auto-connect all AI agents** (Claude, Cursor, Windsurf, Continue, Cline):
@@ -257,7 +257,7 @@ print(f"Path: {' → '.join(str(n) for n in path.nodes)}")
 ### TypeScript client
 
 ```typescript
-import { map } from "@cortex-ai/client";
+import { map } from "cortex-web-client";
 
 const site = await map("amazon.com");
 console.log(`Mapped ${site.nodeCount} pages, ${site.edgeCount} links`);
@@ -319,7 +319,7 @@ Global flags: `--json` `--quiet` `--verbose` `--no-color`
 |:----------|:--------|:--------|
 | **Runtime** | `cortex-runtime` | `cargo install cortex-runtime` |
 | **Python client** | `cortex-agent` | `pip install cortex-agent` |
-| **TypeScript client** | `@cortex-ai/client` | `npm install @cortex-ai/client` |
+| **TypeScript client** | `cortex-web-client` | `npm install cortex-web-client` |
 | **MCP server** | `@cortex/mcp-server` | `cortex plug` (auto) |
 | **LangChain** | `cortex-langchain` | `pip install cortex-langchain` |
 | **CrewAI** | `cortex-crewai` | `pip install cortex-crewai` |
@@ -367,7 +367,7 @@ cortex/
 │       └── cli/              # CLI commands
 ├── clients/
 │   ├── python/           # Python thin client (cortex-agent)
-│   └── typescript/       # TypeScript thin client (@cortex-ai/client)
+│   └── typescript/       # TypeScript thin client (cortex-web-client)
 ├── integrations/
 │   ├── mcp-server/       # MCP server for Claude, Cursor, Windsurf, Continue, Cline
 │   ├── langchain/        # LangChain adapter

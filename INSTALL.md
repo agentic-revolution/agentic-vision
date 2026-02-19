@@ -62,7 +62,7 @@ Requires the Cortex runtime to be installed and running. The daemon starts autom
 ### TypeScript / Node.js
 
 ```bash
-npm install @cortex-ai/client
+npm install cortex-web-client
 ```
 
 Requires the Cortex runtime to be installed and running.

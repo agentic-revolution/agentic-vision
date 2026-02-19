@@ -1,5 +1,5 @@
 {
-  "name": "@cortex-ai/client",
+  "name": "cortex-web-client",
   "version": "1.0.0",
   "description": "Thin TypeScript client for the Cortex web cartography runtime",
   "author": "Cortex Contributors",

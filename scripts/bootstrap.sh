@@ -242,7 +242,7 @@ EOF
 # ─── TypeScript Client ───────────────────────────────
 cat > clients/typescript/package.json << 'EOF'
 {
-  "name": "@cortex-ai/client",
+  "name": "cortex-web-client",
   "version": "0.1.0",
   "license": "Apache-2.0",
   "main": "dist/index.js",

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * @cortex-ai/client — Thin client for the Cortex web cartography runtime.
+ * cortex-web-client — Thin client for the Cortex web cartography runtime.
  */
 
 export {

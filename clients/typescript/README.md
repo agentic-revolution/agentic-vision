@@ -1,11 +1,11 @@
-# @cortex-ai/client
+# cortex-web-client
 
 Thin TypeScript client for [Cortex](https://github.com/cortex-ai/cortex) — the rapid web cartographer for AI agents.
 
 ## Install
 
 ```bash
-npm install @cortex-ai/client
+npm install cortex-web-client
 ```
 
 > Requires the Cortex runtime. Install with: `cargo install cortex-runtime`
@@ -14,7 +14,7 @@ npm install @cortex-ai/client
 ## Quick Start
 
 ```typescript
-import { map } from "@cortex-ai/client";
+import { map } from "cortex-web-client";
 
 // Map a website into a navigable graph
 const site = await map("amazon.com");
@@ -60,8 +60,8 @@ Each page has a 128-dimensional feature vector. Key dimensions:
 ## API
 
 ```typescript
-import { map, mapMany, perceive, perceiveMany, status } from "@cortex-ai/client";
-import type { SiteMapClient, NodeMatch, MapOptions } from "@cortex-ai/client";
+import { map, mapMany, perceive, perceiveMany, status } from "cortex-web-client";
+import type { SiteMapClient, NodeMatch, MapOptions } from "cortex-web-client";
 
 // Map sites
 const site = await map("github.com");
@@ -83,7 +83,7 @@ console.log(info.cached_maps, info.uptime);
 ## Error Handling
 
 ```typescript
-import { CortexConnectionError, CortexMapError } from "@cortex-ai/client";
+import { CortexConnectionError, CortexMapError } from "cortex-web-client";
 
 try {
   const site = await map("example.com");
