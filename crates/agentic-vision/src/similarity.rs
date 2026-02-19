@@ -45,7 +45,11 @@ pub fn find_similar(
         .filter(|m| m.similarity >= min_similarity)
         .collect();
 
-    matches.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap_or(std::cmp::Ordering::Equal));
+    matches.sort_by(|a, b| {
+        b.similarity
+            .partial_cmp(&a.similarity)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     matches.truncate(top_k);
     matches
 }

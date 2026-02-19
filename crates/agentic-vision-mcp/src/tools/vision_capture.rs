@@ -70,16 +70,12 @@ pub async fn execute(
         serde_json::from_value(args).map_err(|e| McpError::InvalidParams(e.to_string()))?;
 
     let source_data = match params.source.source_type.as_str() {
-        "file" => params
-            .source
-            .path
-            .as_deref()
-            .ok_or_else(|| McpError::InvalidParams("'path' required for file source".to_string()))?,
-        "base64" => params
-            .source
-            .data
-            .as_deref()
-            .ok_or_else(|| McpError::InvalidParams("'data' required for base64 source".to_string()))?,
+        "file" => params.source.path.as_deref().ok_or_else(|| {
+            McpError::InvalidParams("'path' required for file source".to_string())
+        })?,
+        "base64" => params.source.data.as_deref().ok_or_else(|| {
+            McpError::InvalidParams("'data' required for base64 source".to_string())
+        })?,
         other => {
             return Err(McpError::InvalidParams(format!(
                 "Unsupported source type: {other}. Use 'file' or 'base64'."

@@ -51,8 +51,8 @@ pub async fn execute(
 
     if params.detailed {
         if let Ok(diff) = session.diff(params.id_a, params.id_b) {
-            result["changed_regions"] = serde_json::to_value(&diff.changed_regions)
-                .unwrap_or(Value::Array(vec![]));
+            result["changed_regions"] =
+                serde_json::to_value(&diff.changed_regions).unwrap_or(Value::Array(vec![]));
             result["pixel_diff_ratio"] = json!(diff.pixel_diff_ratio);
         }
     }

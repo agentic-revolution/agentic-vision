@@ -1,8 +1,3 @@
-# Copyright 2026 Cortex Contributors
-# SPDX-License-Identifier: Apache-2.0
-#
-# Build and release Cortex binaries for all platforms on tag push.
-
 name: Release
 
 on:
@@ -49,26 +44,25 @@ jobs:
           sudo apt-get install -y gcc-aarch64-linux-gnu
 
       - name: Build
-        working-directory: runtime
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --workspace --release --target ${{ matrix.target }}
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
 
       - name: Strip binary
-        run: strip runtime/target/${{ matrix.target }}/release/cortex || true
+        run: strip target/${{ matrix.target }}/release/agentic-vision-mcp || true
 
       - name: Package
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          ASSET="cortex-${VERSION}-${{ matrix.triple }}"
+          ASSET="agentic-vision-mcp-${VERSION}-${{ matrix.triple }}"
           mkdir -p "${ASSET}"
-          cp runtime/target/${{ matrix.target }}/release/cortex "${ASSET}/"
+          cp target/${{ matrix.target }}/release/agentic-vision-mcp "${ASSET}/"
           tar czf "${ASSET}.tar.gz" "${ASSET}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cortex-${{ matrix.triple }}
+          name: agentic-vision-mcp-${{ matrix.triple }}
           path: "*.tar.gz"
 
   release:
@@ -96,30 +90,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Publish
-        working-directory: runtime
-        run: cargo publish --token "${{ secrets.CARGO_REGISTRY_TOKEN }}"
+      - name: Publish core library
+        run: cargo publish -p agentic-vision --token "${{ secrets.CARGO_REGISTRY_TOKEN }}"
         continue-on-error: true
-
-  publish-npm:
-    name: Publish npm packages
-    needs: release
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          registry-url: https://registry.npmjs.org
       - name: Publish MCP server
-        working-directory: integrations/mcp-server
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        continue-on-error: true
-      - name: Publish CLI wrapper
-        working-directory: packaging/npm
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: cargo publish -p agentic-vision-mcp --token "${{ secrets.CARGO_REGISTRY_TOKEN }}"
         continue-on-error: true

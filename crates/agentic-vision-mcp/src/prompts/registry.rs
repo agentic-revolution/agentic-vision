@@ -13,9 +13,7 @@ impl PromptRegistry {
         vec![
             PromptDefinition {
                 name: "observe".to_string(),
-                description: Some(
-                    "Guide for capturing and describing what you see".to_string(),
-                ),
+                description: Some("Guide for capturing and describing what you see".to_string()),
                 arguments: Some(vec![PromptArgument {
                     name: "context".to_string(),
                     description: Some("Optional context about what to observe".to_string()),
@@ -66,10 +64,7 @@ impl PromptRegistry {
         ]
     }
 
-    pub async fn get(
-        name: &str,
-        arguments: Option<Value>,
-    ) -> McpResult<PromptGetResult> {
+    pub async fn get(name: &str, arguments: Option<Value>) -> McpResult<PromptGetResult> {
         let args = arguments.unwrap_or(Value::Object(serde_json::Map::new()));
 
         match name {

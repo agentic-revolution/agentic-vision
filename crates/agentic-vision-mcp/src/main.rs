@@ -83,8 +83,7 @@ async fn main() -> anyhow::Result<()> {
             let effective_vision = vision.or(cli.vision);
             let effective_model = model.or(cli.model);
             let vision_path = resolve_vision_path(effective_vision.as_deref());
-            let session =
-                VisionSessionManager::open(&vision_path, effective_model.as_deref())?;
+            let session = VisionSessionManager::open(&vision_path, effective_model.as_deref())?;
             let session = Arc::new(Mutex::new(session));
             let handler = ProtocolHandler::new(session);
             let transport = StdioTransport::new(handler);

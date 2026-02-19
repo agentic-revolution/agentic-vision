@@ -72,10 +72,7 @@ pub async fn execute(
                 }
             }
             if !params.labels.is_empty()
-                && !params
-                    .labels
-                    .iter()
-                    .any(|l| o.metadata.labels.contains(l))
+                && !params.labels.iter().any(|l| o.metadata.labels.contains(l))
             {
                 return false;
             }

@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["crates/agentic-vision", "crates/agentic-vision-mcp"]
+exclude = ["runtime"]
 
 [workspace.package]
 version = "0.1.0"

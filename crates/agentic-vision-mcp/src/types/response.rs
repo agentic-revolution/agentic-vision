@@ -58,7 +58,11 @@ pub struct ToolDefinition {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolListResult {
     pub tools: Vec<ToolDefinition>,
-    #[serde(default, rename = "nextCursor", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "nextCursor",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub next_cursor: Option<String>,
 }
 
@@ -97,7 +101,11 @@ pub struct ResourceTemplateDefinition {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceListResult {
     pub resources: Vec<ResourceDefinition>,
-    #[serde(default, rename = "nextCursor", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "nextCursor",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub next_cursor: Option<String>,
 }
 
@@ -105,7 +113,11 @@ pub struct ResourceListResult {
 pub struct ResourceTemplateListResult {
     #[serde(rename = "resourceTemplates")]
     pub resource_templates: Vec<ResourceTemplateDefinition>,
-    #[serde(default, rename = "nextCursor", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "nextCursor",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub next_cursor: Option<String>,
 }
 
@@ -135,7 +147,11 @@ pub struct PromptDefinition {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PromptListResult {
     pub prompts: Vec<PromptDefinition>,
-    #[serde(default, rename = "nextCursor", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "nextCursor",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub next_cursor: Option<String>,
 }
 

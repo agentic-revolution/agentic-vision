@@ -12,8 +12,7 @@ pub fn definition() -> ToolDefinition {
     ToolDefinition {
         name: "vision_ocr".to_string(),
         description: Some(
-            "Extract text from a capture using OCR (requires --features ocr in v0.2.0)"
-                .to_string(),
+            "Extract text from a capture using OCR (requires --features ocr in v0.2.0)".to_string(),
         ),
         input_schema: json!({
             "type": "object",

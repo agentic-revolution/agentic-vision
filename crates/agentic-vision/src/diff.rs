@@ -2,7 +2,7 @@
 
 use image::{DynamicImage, GenericImageView, GrayImage, Luma};
 
-use crate::types::{Rect, VisualDiff, VisionResult};
+use crate::types::{Rect, VisionResult, VisualDiff};
 
 /// Pixel difference threshold (0-255) for considering a pixel "changed".
 const DIFF_THRESHOLD: u8 = 30;

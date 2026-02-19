@@ -5,10 +5,7 @@ use serde_json::Value;
 use crate::types::{McpResult, PromptGetResult, PromptMessage, ToolContent};
 
 pub fn expand(args: Value) -> McpResult<PromptGetResult> {
-    let context = args
-        .get("context")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let context = args.get("context").and_then(|v| v.as_str()).unwrap_or("");
 
     let context_section = if context.is_empty() {
         String::new()

@@ -113,7 +113,11 @@ async fn capture_image(
 async fn test_01_path_traversal() {
     let dir = tempfile::tempdir().unwrap();
     // Create the traversal target to ensure it doesn't escape
-    let evil_path = format!("{}/../../../tmp/evil_test_{}.avis", dir.path().display(), std::process::id());
+    let evil_path = format!(
+        "{}/../../../tmp/evil_test_{}.avis",
+        dir.path().display(),
+        std::process::id()
+    );
 
     // The server should resolve the path but it should NOT create files
     // outside the intended directory. VisionSessionManager::open will
@@ -259,7 +263,10 @@ async fn test_04_invalid_params_no_source() {
 /// Test 5: Missing directory — --vision /nonexistent/dir/test.avis
 #[tokio::test]
 async fn test_05_missing_directory() {
-    let unique = format!("/tmp/avis_test_{}/deep/nested/test.avis", std::process::id());
+    let unique = format!(
+        "/tmp/avis_test_{}/deep/nested/test.avis",
+        std::process::id()
+    );
 
     // Should auto-create the directory chain
     let result = VisionSessionManager::open(&unique, None);
@@ -304,10 +311,7 @@ async fn test_06_empty_file() {
     let result = VisionSessionManager::open(path.to_str().unwrap(), None);
 
     // Should fail gracefully with a meaningful error (not panic)
-    assert!(
-        result.is_err(),
-        "Empty .avis file should produce an error"
-    );
+    assert!(result.is_err(), "Empty .avis file should produce an error");
     let err = match result {
         Err(e) => format!("{e}"),
         Ok(_) => panic!("Expected error for empty file"),
@@ -315,7 +319,11 @@ async fn test_06_empty_file() {
     eprintln!("  Empty file error: {err}");
     // Should mention something about reading failing
     assert!(
-        err.contains("read") || err.contains("magic") || err.contains("fill") || err.contains("UnexpectedEof") || err.contains("failed"),
+        err.contains("read")
+            || err.contains("magic")
+            || err.contains("fill")
+            || err.contains("UnexpectedEof")
+            || err.contains("failed"),
         "Error should indicate read failure: {err}"
     );
 
@@ -410,7 +418,10 @@ async fn test_08_unicode_descriptions() {
     let query_resp = send_unwrap(&handler, query_msg).await;
     let result_text = query_resp["result"]["content"][0]["text"].as_str().unwrap();
     let parsed: Value = serde_json::from_str(result_text).unwrap();
-    assert_eq!(parsed["total"], 1, "Should find 1 result with Chinese emoji label");
+    assert_eq!(
+        parsed["total"], 1,
+        "Should find 1 result with Chinese emoji label"
+    );
 
     println!("TEST 08 — Unicode Descriptions: PASS");
 }
@@ -434,7 +445,10 @@ async fn test_09_future_protocol_version() {
     let resp = send_unwrap(&handler, msg).await;
 
     // Server should respond with its own version, not crash
-    assert!(resp.get("result").is_some(), "Should handle future protocol version: {resp}");
+    assert!(
+        resp.get("result").is_some(),
+        "Should handle future protocol version: {resp}"
+    );
     let result = &resp["result"];
     assert_eq!(
         result["protocolVersion"], "2024-11-05",
@@ -460,8 +474,7 @@ async fn test_09_future_protocol_version() {
 async fn test_10_graceful_shutdown() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("shutdown_test.avis");
-    let session =
-        VisionSessionManager::open(path.to_str().unwrap(), None).unwrap();
+    let session = VisionSessionManager::open(path.to_str().unwrap(), None).unwrap();
     let session = Arc::new(Mutex::new(session));
     let handler = ProtocolHandler::new(session.clone());
 
@@ -489,7 +502,11 @@ async fn test_10_graceful_shutdown() {
     let reopened = VisionSessionManager::open(path.to_str().unwrap(), None);
     assert!(reopened.is_ok(), "Should reopen after shutdown");
     let reopened = reopened.unwrap();
-    assert_eq!(reopened.store().count(), 1, "Should have 1 capture after reopen");
+    assert_eq!(
+        reopened.store().count(),
+        1,
+        "Should have 1 capture after reopen"
+    );
 
     println!("TEST 10 — Graceful Shutdown: PASS");
 }
@@ -504,21 +521,26 @@ async fn test_11_rapid_reconnect() {
     let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &png);
 
     for i in 0..5 {
-        let mut session =
-            VisionSessionManager::open(path.to_str().unwrap(), None).unwrap();
+        let mut session = VisionSessionManager::open(path.to_str().unwrap(), None).unwrap();
         let session_id = session.start_session(None).unwrap();
         assert!(session_id > 0, "Session {i} should have valid ID");
         // Capture something so the store gets marked dirty and save() writes
         session
-            .capture("base64", &b64, Some("image/png"), vec![format!("round-{i}")], None, false)
+            .capture(
+                "base64",
+                &b64,
+                Some("image/png"),
+                vec![format!("round-{i}")],
+                None,
+                false,
+            )
             .unwrap();
         session.end_session().unwrap();
         // Drop triggers save via Drop impl
     }
 
     // Final open should see accumulated captures
-    let final_session =
-        VisionSessionManager::open(path.to_str().unwrap(), None).unwrap();
+    let final_session = VisionSessionManager::open(path.to_str().unwrap(), None).unwrap();
     assert!(
         final_session.store().count() >= 5,
         "Should have accumulated captures across reconnects, got {}",
@@ -769,7 +791,10 @@ async fn test_bonus_unknown_tool() {
         json!({ "name": "nonexistent_tool", "arguments": {} }),
     );
     let resp = send_unwrap(&handler, msg).await;
-    assert!(resp.get("error").is_some(), "Unknown tool should error: {resp}");
+    assert!(
+        resp.get("error").is_some(),
+        "Unknown tool should error: {resp}"
+    );
     assert_eq!(resp["error"]["code"], -32803); // TOOL_NOT_FOUND
 
     println!("TEST BONUS — Unknown Tool: PASS");
@@ -786,7 +811,10 @@ async fn test_bonus_unknown_method() {
 
     let msg = mcp_request(1, "foo/bar/baz", json!({}));
     let resp = send_unwrap(&handler, msg).await;
-    assert!(resp.get("error").is_some(), "Unknown method should error: {resp}");
+    assert!(
+        resp.get("error").is_some(),
+        "Unknown method should error: {resp}"
+    );
     assert_eq!(resp["error"]["code"], -32601); // METHOD_NOT_FOUND
 
     println!("TEST BONUS — Unknown Method: PASS");
@@ -816,7 +844,10 @@ async fn test_bonus_compare_self() {
         }),
     );
     let resp = send_unwrap(&handler, msg).await;
-    assert!(resp.get("result").is_some(), "Self-compare should work: {resp}");
+    assert!(
+        resp.get("result").is_some(),
+        "Self-compare should work: {resp}"
+    );
 
     // Similarity with self should be exactly 1.0 (or 0.0 for zero vectors in fallback mode)
     let text = resp["result"]["content"][0]["text"].as_str().unwrap();

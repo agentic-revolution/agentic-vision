@@ -7,8 +7,8 @@ use image::GenericImageView;
 
 use agentic_vision::{
     capture_from_base64, capture_from_file, compute_diff, cosine_similarity, find_similar,
-    generate_thumbnail, AvisReader, AvisWriter, EmbeddingEngine, ObservationMeta,
-    SimilarityMatch, VisualDiff, VisualMemoryStore, VisualObservation, EMBEDDING_DIM,
+    generate_thumbnail, AvisReader, AvisWriter, EmbeddingEngine, ObservationMeta, SimilarityMatch,
+    VisualDiff, VisualMemoryStore, VisualObservation, EMBEDDING_DIM,
 };
 
 use crate::types::{McpError, McpResult};
@@ -50,14 +50,19 @@ impl VisionSessionManager {
 
         let current_session = store.session_count + 1;
 
-        let engine = EmbeddingEngine::new(model_path)
-            .map_err(|e| McpError::VisionError(format!("Failed to initialize embedding engine: {e}")))?;
+        let engine = EmbeddingEngine::new(model_path).map_err(|e| {
+            McpError::VisionError(format!("Failed to initialize embedding engine: {e}"))
+        })?;
 
         tracing::info!(
             "Session {} started. Store has {} observations. Embedding model: {}",
             current_session,
             store.count(),
-            if engine.has_model() { "loaded" } else { "fallback" }
+            if engine.has_model() {
+                "loaded"
+            } else {
+                "fallback"
+            }
         );
 
         Ok(Self {
@@ -196,7 +201,12 @@ impl VisionSessionManager {
             .get(capture_id)
             .ok_or(McpError::CaptureNotFound(capture_id))?;
 
-        let mut matches = find_similar(&obs.embedding, &self.store.observations, top_k + 1, min_similarity);
+        let mut matches = find_similar(
+            &obs.embedding,
+            &self.store.observations,
+            top_k + 1,
+            min_similarity,
+        );
         // Remove self from results
         matches.retain(|m| m.id != capture_id);
         matches.truncate(top_k);
