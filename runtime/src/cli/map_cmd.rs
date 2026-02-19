@@ -174,7 +174,11 @@ pub async fn run(
     if show_progress {
         let elapsed = start.elapsed();
         // Show completed progress bar
-        eprintln!("  {} 100%  {}", s.green(&"\u{2588}".repeat(40)), s.yellow(&format!("{:.1}s", elapsed.as_secs_f64())));
+        eprintln!(
+            "  {} 100%  {}",
+            s.green(&"\u{2588}".repeat(40)),
+            s.yellow(&format!("{:.1}s", elapsed.as_secs_f64()))
+        );
 
         // Compute file size from map_path if available
         let size_str = result
