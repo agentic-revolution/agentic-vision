@@ -32,6 +32,10 @@ cortex wql "SELECT name, price FROM Product WHERE price < 200 ORDER BY price ASC
 
 Three commands. Zero browser launches. Zero LLM calls. Structured data from any website.
 
+<p align="center">
+  <img src="assets/cli-demo.svg" alt="CLI demo showing cortex map, compile, query, and plug commands" width="780">
+</p>
+
 ---
 
 <p align="center">

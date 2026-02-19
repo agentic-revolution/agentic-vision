@@ -28,6 +28,7 @@ Thumbs.db
 # AI prompts, planning docs, test specs (internal only)
 .claude/
 docs/planning/
+scripts/claude-session.sh
 
 # LaTeX build artifacts (canonical PDF kept in publication/)
 publication/*.aux
