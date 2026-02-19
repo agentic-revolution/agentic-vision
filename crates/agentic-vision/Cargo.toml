@@ -6,6 +6,7 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 description = "Core vision library for AgenticVision — image capture, embedding, similarity, and visual memory"
+readme = "README.md"
 keywords = ["vision", "embedding", "clip", "image", "ai"]
 categories = ["multimedia::images", "science"]
 exclude = [".DS_Store"]
