@@ -52,8 +52,6 @@ pub async fn run(
 
     if show_progress {
         eprintln!();
-        eprintln!("  {} Mapping {domain}", s.bold("CORTEX —"));
-        eprintln!();
     }
 
     let needs_setup = auto_setup_if_needed().await?;
@@ -175,77 +173,41 @@ pub async fn run(
 
     if show_progress {
         let elapsed = start.elapsed();
-        eprintln!();
-        eprintln!("  {} Mapped {domain}", s.ok_sym());
+        // Show completed progress bar
+        eprintln!("  {} 100%  {}", s.green(&"\u{2588}".repeat(40)), s.yellow(&format!("{:.1}s", elapsed.as_secs_f64())));
+
+        // Compute file size from map_path if available
+        let size_str = result
+            .get("map_path")
+            .and_then(|v| v.as_str())
+            .and_then(|p| std::fs::metadata(p).ok())
+            .map(|m| output::format_size(m.len()))
+            .unwrap_or_default();
+        let size_suffix = if size_str.is_empty() {
+            String::new()
+        } else {
+            format!(" \u{00b7} {size_str}")
+        };
         eprintln!(
-            "    {} nodes  ·  {} edges  ·  {:.1}s",
-            format_count(node_count),
-            format_count(edge_count),
-            elapsed.as_secs_f64()
+            "  {} Mapped {} nodes \u{00b7} {} edges{}",
+            s.ok_sym(),
+            s.blue(&format_count(node_count)),
+            s.blue(&format_count(edge_count)),
+            size_suffix,
         );
-        eprintln!();
-        eprintln!("  Query with: cortex query {domain} --type product_detail");
-
-        // Show dashboard hint if HTTP is available
-        eprintln!("  Dashboard:  http://localhost:7700/dashboard");
-    }
-
-    // Cache the map binary if available
-    if let Some(map_path) = result.get("map_path").and_then(|v| v.as_str()) {
-        if show_progress {
-            eprintln!("  Cached at:  {map_path}");
-        }
     }
 
     Ok(())
 }
 
-/// Print map stats in branded format.
+/// Print map stats in compact friendly format.
 fn print_map_stats(s: &Styled, map: &SiteMap, elapsed: std::time::Duration) {
-    let rendered = map.nodes.iter().filter(|n| n.flags.is_rendered()).count();
-    let estimated = map.nodes.len() - rendered;
-
-    // Count page types
-    let mut type_counts: HashMap<String, usize> = HashMap::new();
-    for node in &map.nodes {
-        let name = format!("{:?}", node.page_type).to_lowercase();
-        *type_counts.entry(name).or_default() += 1;
-    }
-    let mut type_vec: Vec<(String, usize)> = type_counts.into_iter().collect();
-    type_vec.sort_by(|a, b| b.1.cmp(&a.1));
-
-    let total_nodes = map.nodes.len();
-
-    eprintln!("  Map complete in {:.1}s", elapsed.as_secs_f64());
-    eprintln!();
-    eprintln!("  {}", s.bold(&format!("{:<45}", map.header.domain)));
     eprintln!(
-        "  Nodes:     {} ({} rendered, {} estimated)",
-        total_nodes, rendered, estimated
-    );
-    eprintln!("  Edges:     {}", map.edges.len());
-    if !map.cluster_centroids.is_empty() {
-        eprintln!("  Clusters:  {}", map.cluster_centroids.len());
-    }
-    eprintln!("  Actions:   {}", map.actions.len());
-    eprintln!();
-
-    if !type_vec.is_empty() {
-        eprintln!("  Top page types:");
-        for (name, count) in type_vec.iter().take(5) {
-            let pct = if total_nodes > 0 {
-                (count * 100) / total_nodes
-            } else {
-                0
-            };
-            eprintln!("    {:<20} {:>6}  ({pct}%)", name, count);
-        }
-    }
-
-    eprintln!();
-    eprintln!(
-        "  Query with: cortex query {} --type product_detail",
-        map.header.domain
+        "  {} {} nodes \u{00b7} {} edges \u{00b7} {:.1}s",
+        s.ok_sym(),
+        s.blue(&format!("{}", map.nodes.len())),
+        s.blue(&format!("{}", map.edges.len())),
+        elapsed.as_secs_f64(),
     );
 }
 
@@ -398,7 +360,10 @@ async fn stream_progress_from_sse(domain: String) {
         return;
     }
 
-    // Read SSE data lines
+    // Track progress via SSE events and render a single progress bar
+    let total_layers = 5u64;
+    let mut completed_layers = 0u64;
+
     while let Ok(Some(line)) = lines.next_line().await {
         let trimmed = line.trim();
         if !trimmed.starts_with("data:") {
@@ -416,77 +381,23 @@ async fn stream_progress_from_sse(domain: String) {
 
         let event_type = event.get("type").and_then(|v| v.as_str()).unwrap_or("");
         match event_type {
-            "SitemapDiscovered" => {
-                let count = event.get("url_count").and_then(|v| v.as_u64()).unwrap_or(0);
-                let ms = event
-                    .get("elapsed_ms")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0);
-                eprintln!(
-                    "  Layer 0  {:<22} {} URLs discovered {:>20} {}",
-                    "Metadata",
-                    format_count(count),
-                    format!("{:.1}s", ms as f64 / 1000.0),
-                    s.ok_sym(),
-                );
-            }
-            "StructuredDataExtracted" => {
-                let pages = event
-                    .get("pages_fetched")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0);
-                let jsonld = event
-                    .get("jsonld_found")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0);
-                let patterns = event
-                    .get("patterns_used")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0);
-                let ms = event
-                    .get("elapsed_ms")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0);
-                let pct = if pages > 0 { (jsonld * 100) / pages } else { 0 };
-                eprintln!(
-                    "  Layer 1  {:<22} {} pages, {} JSON-LD ({}%) {:>15} {}",
-                    "Structured Data",
-                    pages,
-                    jsonld,
+            "SitemapDiscovered" | "StructuredDataExtracted" | "LayerComplete" => {
+                completed_layers += 1;
+                let pct = std::cmp::min((completed_layers * 100) / total_layers, 99);
+                let filled = (pct as usize * 40) / 100;
+                let empty = 40 - filled;
+                // Overwrite the progress line with \r
+                eprint!(
+                    "\r  {}{} {:>3}%",
+                    s.green(&"\u{2588}".repeat(filled)),
+                    "\u{2591}".repeat(empty),
                     pct,
-                    format!("{:.1}s", ms as f64 / 1000.0),
-                    s.ok_sym(),
-                );
-                if patterns > 0 {
-                    eprintln!(
-                        "  Layer 1½ {:<22} {} pages enriched via CSS selectors",
-                        "Pattern Engine", patterns,
-                    );
-                }
-            }
-            "LayerComplete" => {
-                let layer = event.get("layer").and_then(|v| v.as_u64()).unwrap_or(0);
-                let name = event
-                    .get("layer_name")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("?");
-                let ms = event
-                    .get("elapsed_ms")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0);
-                eprintln!(
-                    "  Layer {}  {:<22} {:>36} {}",
-                    layer,
-                    name,
-                    format!("{:.1}s", ms as f64 / 1000.0),
-                    s.ok_sym(),
                 );
             }
             "MapComplete" | "MapFailed" => {
-                // Stop streaming — the final summary comes from the socket response
                 break;
             }
-            _ => {} // Skip other event types
+            _ => {}
         }
     }
 }

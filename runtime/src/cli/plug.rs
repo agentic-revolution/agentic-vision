@@ -21,26 +21,16 @@ pub async fn run(
 ) -> Result<()> {
     let quiet = crate::cli::output::is_quiet();
     let json_mode = crate::cli::output::is_json();
-
-    if !quiet && !json_mode {
-        println!();
-        println!("  Cortex Plug \u{2014} Connect web cartography tools to your AI agents.");
-        println!();
-    }
+    let s = crate::cli::output::Styled::new();
 
     let probes = if let Some(dir) = config_dir {
         build_test_probes(dir)
     } else {
         build_probes()
     };
-    let mut connected = 0u32;
-    let mut needs_restart: Vec<&str> = Vec::new();
+    let mut connected_names: Vec<&str> = Vec::new();
     let mut json_results: Vec<serde_json::Value> = Vec::new();
-
-    if !quiet && !json_mode && !list_only && !status_only {
-        println!("  Scanning for agents...");
-        println!();
-    }
+    let mut needs_restart: Vec<&str> = Vec::new();
 
     for probe in &probes {
         // Filter to specific agent if requested
@@ -55,15 +45,11 @@ pub async fn run(
         let config_path = match probe.detect() {
             Some(p) => p,
             None => {
-                if list_only || status_only {
-                    if json_mode {
-                        json_results.push(json!({
-                            "agent": probe.name,
-                            "detected": false,
-                        }));
-                    } else if !quiet {
-                        println!("  \u{2717} {:<20} not found", probe.name);
-                    }
+                if (list_only || status_only) && json_mode {
+                    json_results.push(json!({
+                        "agent": probe.name,
+                        "detected": false,
+                    }));
                 }
                 continue;
             }
@@ -76,14 +62,8 @@ pub async fn run(
                     "detected": true,
                     "config_path": config_path.display().to_string(),
                 }));
-            } else if !quiet {
-                println!(
-                    "  \u{2713} {:<20} found at {}",
-                    probe.name,
-                    config_path.display()
-                );
             }
-            connected += 1;
+            connected_names.push(probe.name);
             continue;
         }
 
@@ -97,16 +77,16 @@ pub async fn run(
                     "cortex_connected": has_cortex,
                 }));
             } else if !quiet {
-                let symbol = if has_cortex { "\u{2713}" } else { "\u{25cb}" };
+                let symbol = if has_cortex { s.ok_sym() } else { s.info_sym() };
                 let status = if has_cortex {
                     "connected"
                 } else {
                     "not connected"
                 };
-                println!("  {} {:<20} {}", symbol, probe.name, status);
+                eprintln!("  {} {:<20} {}", symbol, probe.name, status);
             }
             if has_cortex {
-                connected += 1;
+                connected_names.push(probe.name);
             }
             continue;
         }
@@ -119,25 +99,17 @@ pub async fn run(
                             "agent": probe.name,
                             "action": "removed",
                         }));
-                    } else if !quiet {
-                        println!(
-                            "  \u{2713} {:<20} \u{2192} Removed from {}",
-                            probe.name,
-                            config_path
-                                .file_name()
-                                .unwrap_or_default()
-                                .to_string_lossy()
-                        );
                     }
+                    connected_names.push(probe.name);
                 }
-                Ok(RemovalResult::NotPresent) => {
-                    if !quiet && !json_mode {
-                        println!("  \u{25cb} {:<20} was not connected", probe.name);
-                    }
-                }
+                Ok(RemovalResult::NotPresent) => {}
                 Err(e) => {
-                    if !quiet && !json_mode {
-                        println!("  \u{26a0} {:<20} removal failed: {}", probe.name, e);
+                    if json_mode {
+                        json_results.push(json!({
+                            "agent": probe.name,
+                            "action": "error",
+                            "error": e.to_string(),
+                        }));
                     }
                 }
             }
@@ -147,7 +119,7 @@ pub async fn run(
         // Inject
         match inject_mcp_server(&config_path) {
             Ok(InjectionResult::Injected) => {
-                connected += 1;
+                connected_names.push(probe.name);
                 if json_mode {
                     json_results.push(json!({
                         "agent": probe.name,
@@ -155,35 +127,18 @@ pub async fn run(
                         "config_path": config_path.display().to_string(),
                         "needs_restart": probe.needs_restart,
                     }));
-                } else if !quiet {
-                    println!("  \u{2713} {:<20} found", probe.name);
-                    println!(
-                        "    \u{2192} Added 9 Cortex tools to {}",
-                        config_path
-                            .file_name()
-                            .unwrap_or_default()
-                            .to_string_lossy()
-                    );
-                    println!(
-                        "    \u{2192} Tools: map, query, pathfind, act, perceive, compare, auth, compile, wql"
-                    );
-                    if probe.needs_restart {
-                        println!("    \u{2192} Restart {} to activate", probe.name);
-                        needs_restart.push(probe.name);
-                    } else {
-                        println!("    \u{2192} Active immediately");
-                    }
+                }
+                if probe.needs_restart {
+                    needs_restart.push(probe.name);
                 }
             }
             Ok(InjectionResult::AlreadyPresent) => {
-                connected += 1;
+                connected_names.push(probe.name);
                 if json_mode {
                     json_results.push(json!({
                         "agent": probe.name,
                         "action": "already_present",
                     }));
-                } else if !quiet {
-                    println!("  \u{2713} {:<20} already connected", probe.name);
                 }
             }
             Err(e) => {
@@ -193,55 +148,51 @@ pub async fn run(
                         "action": "error",
                         "error": e.to_string(),
                     }));
-                } else if !quiet {
-                    println!("  \u{26a0} {:<20} injection failed: {}", probe.name, e);
                 }
             }
         }
-
-        if !quiet && !json_mode {
-            println!();
-        }
     }
 
-    // Summary
+    // Output
     if json_mode {
         crate::cli::output::print_json(&json!({
             "agents": json_results,
-            "connected": connected,
+            "connected": connected_names.len(),
         }));
     } else if !quiet {
-        if !list_only && !status_only && !remove {
-            println!("  \u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}");
-            println!(
-                "  \u{2713} {} agent(s) connected. Cortex is ready.",
-                connected
-            );
-            println!();
-            println!("  What happened:");
-            println!("    Your agent(s) now have 9 web cartography tools.");
-            println!("    Cortex maps websites into graphs \u{2014} your agent queries");
-            println!("    them in microseconds instead of browsing page by page.");
-            println!();
-            if !needs_restart.is_empty() {
-                println!("  Restart to activate: {}", needs_restart.join(", "));
-                println!();
+        if remove {
+            if connected_names.is_empty() {
+                eprintln!("  {} No agents to disconnect.", s.info_sym());
+            } else {
+                let names_str = connected_names
+                    .iter()
+                    .map(|n| s.cyan(n))
+                    .collect::<Vec<_>>()
+                    .join(" \u{00b7} ");
+                eprintln!("  {} Removed from {}", s.ok_sym(), names_str);
             }
-            println!("  Try it:");
-            println!("    Claude:     \"Map amazon.com and find headphones under $300\"");
-            println!("    Terminal:   cortex map amazon.com");
-            println!("    Python:     from cortex_client import map");
-            println!();
-            println!("  Manage:");
-            println!("    cortex plug --status    See which agents are connected");
-            println!("    cortex plug --remove    Disconnect from all agents");
-            println!("    cortex status           Check if the runtime is running");
-            println!();
-        } else if remove {
-            println!();
-            println!("  Done. Cortex disconnected from agents.");
-            println!("  Runtime still running. Stop with: cortex stop");
-            println!();
+        } else if connected_names.is_empty() {
+            eprintln!("  {} No agents detected.", s.info_sym());
+        } else {
+            // Compact one-liner: ✓ Claude Desktop · Claude Code · Cursor — 9 tools each
+            let names_str = connected_names
+                .iter()
+                .map(|n| s.cyan(n))
+                .collect::<Vec<_>>()
+                .join(" \u{00b7} ");
+            eprintln!(
+                "  {} {} \u{2014} {} tools each",
+                s.ok_sym(),
+                names_str,
+                s.blue("9"),
+            );
+            if !needs_restart.is_empty() {
+                eprintln!(
+                    "  {} Restart to activate: {}",
+                    s.info_sym(),
+                    needs_restart.join(", ")
+                );
+            }
         }
     }
 
