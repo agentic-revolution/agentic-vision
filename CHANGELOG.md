@@ -5,6 +5,38 @@ All notable changes to AgenticVision will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — v0.2.0 Remote Server Support
+
+### Planned
+
+- **Remote HTTP/SSE transport** (`serve-http` command)
+  - `--token` flag for bearer authentication
+  - `--multi-tenant --data-dir` for per-user vision files
+  - `/health` endpoint for monitoring
+  - `--tls-cert` / `--tls-key` for native HTTPS (optional)
+
+- **OCR with Tesseract** (`--features ocr`)
+  - `extract_text` tool for text extraction from images
+
+- **Clipboard TIFF fix**
+  - Improved TIFF handling for macOS clipboard captures
+
+- **New CLI commands**
+  - `delete` — remove a specific vision entry
+  - `export` — export vision data to JSON
+  - `compact` — defragment and optimize data file
+
+- **Infrastructure**
+  - Docker image (`agenticrevolution/agentic-vision-mcp`)
+  - docker-compose with Caddy reverse proxy
+  - Systemd service file
+  - `docs/remote-deployment.md`
+
+- **New error codes**
+  - `UNAUTHORIZED (-32803)`, `USER_NOT_FOUND (-32804)`, `RATE_LIMITED (-32805)`
+
+Tracking: [#2](https://github.com/xeo-labs/agentic-vision/issues/2)
+
 ## [0.1.1] - 2026-02-19
 
 Native screenshot and clipboard capture support.

@@ -4,7 +4,7 @@ Brief description.
 ## Type
 - [ ] Bug fix
 - [ ] New feature
-- [ ] Extractor
+- [ ] MCP tool
 - [ ] Documentation
 
 ## Testing

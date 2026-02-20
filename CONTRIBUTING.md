@@ -78,7 +78,7 @@ All docs are in `docs/`. Fix typos, add examples, clarify explanations — all w
 ## Code Guidelines
 
 - **Rust**: Follow standard Rust conventions. Run `cargo clippy` and `cargo fmt`.
-- **Tests**: Every feature needs tests. We maintain 88+ tests across the stack (35 Rust core, 6 MCP integration + multi-agent, 47 Python).
+- **Tests**: Every feature needs tests. We maintain 91+ tests across the stack (38 Rust core, 6 MCP integration + multi-agent, 47 Python).
 - **Documentation**: Update docs when changing public APIs.
 
 ## Commit Messages

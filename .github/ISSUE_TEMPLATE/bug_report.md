@@ -8,4 +8,4 @@ labels: bug
 **Steps to Reproduce:** 
 **Expected:** 
 **Actual:** 
-**Environment:** OS, `cortex --version`, `cortex doctor` output
+**Environment:** OS, Rust version, `agentic-vision-mcp --version` output

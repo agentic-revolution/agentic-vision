@@ -133,6 +133,28 @@ The `vision_link` tool bridges captures to memory nodes. An agent can associate 
 
 ---
 
+## 4. Remote Server (coming in v0.2.0)
+
+> **Preview** — these features are under development. Track progress in [#2](https://github.com/xeo-labs/agentic-vision/issues/2).
+
+```bash
+# Remote single-user
+agentic-vision-mcp serve-http \
+  --port 8081 \
+  --token "secret123"
+
+# Remote multi-tenant
+agentic-vision-mcp serve-http \
+  --multi-tenant \
+  --data-dir /data/users/ \
+  --port 8081 \
+  --token "secret123"
+```
+
+Docker compose with Caddy reverse proxy will also be available. See the [v0.2.0 roadmap](https://github.com/xeo-labs/agentic-vision/issues/2) for details.
+
+---
+
 ## Build from Source
 
 ```bash
