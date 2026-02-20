@@ -134,8 +134,8 @@ async fn main() -> anyhow::Result<()> {
             multi_tenant,
             data_dir,
         } => {
-            use agentic_vision_mcp::transport::sse::{ServerMode, SseTransport};
             use agentic_vision_mcp::session::tenant::VisionTenantRegistry;
+            use agentic_vision_mcp::transport::sse::{ServerMode, SseTransport};
 
             // Resolve token: CLI flag > env var
             let effective_token = token.or_else(|| std::env::var("AGENTIC_TOKEN").ok());

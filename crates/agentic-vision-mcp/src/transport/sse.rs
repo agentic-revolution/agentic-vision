@@ -64,10 +64,7 @@ impl SseTransport {
     }
 
     /// Create an SSE transport with full configuration.
-    pub fn with_config(
-        token: Option<String>,
-        mode: ServerMode,
-    ) -> Self {
+    pub fn with_config(token: Option<String>, mode: ServerMode) -> Self {
         Self {
             state: Arc::new(ServerState { token, mode }),
         }
@@ -209,9 +206,7 @@ async fn handle_request(
 
 /// Health check endpoint — no auth required.
 #[cfg(feature = "sse")]
-async fn handle_health(
-    State(state): State<Arc<ServerState>>,
-) -> AxumJson<serde_json::Value> {
+async fn handle_health(State(state): State<Arc<ServerState>>) -> AxumJson<serde_json::Value> {
     let mut health = serde_json::json!({
         "status": "ok",
         "version": env!("CARGO_PKG_VERSION"),
