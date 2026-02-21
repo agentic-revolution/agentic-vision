@@ -35,16 +35,6 @@ One binary. 10 MCP tools. Persistent `.avis` files. Works with Claude Desktop, V
 
 ---
 
-<p align="center">
-  <img src="assets/architecture.svg" alt="AgenticVision architecture — MCP clients, transport, tools, resources, prompts, CLIP engine, similarity, diff, memory linking, .avis storage" width="800">
-</p>
-
-<p align="center">
-  <img src="assets/architecture-agentra.svg" alt="AgenticVision architecture in Agentra Labs design system" width="980">
-</p>
-
----
-
 <a name="benchmarks"></a>
 
 ## Benchmarks
@@ -62,6 +52,10 @@ Rust core. CLIP ViT-B/32 via ONNX Runtime. Binary `.avis` format. Real numbers f
 
 > All benchmarks on Apple M4, macOS 26.2, Rust 1.90.0 `--release`. ONNX Runtime for CLIP inference. Fallback mode available when ONNX model is not present.
 
+<p align="center">
+  <img src="assets/vision-runtime-flow-agentra.svg" alt="AgenticVision runtime flow from capture to embedding, storage, query, and MCP response" width="980">
+</p>
+
 ---
 
 <a name="why-agenticvision"></a>
@@ -78,11 +72,19 @@ Rust core. CLIP ViT-B/32 via ONNX Runtime. Binary `.avis` format. Real numbers f
 
 **Links to AgenticMemory.** The `vision_link` tool connects visual captures to [AgenticMemory](https://github.com/agentralabs/agentic-memory) cognitive graph nodes — bridging what an agent *sees* with what it *knows*.
 
+<p align="center">
+  <img src="assets/architecture-agentra.svg" alt="AgenticVision architecture in Agentra Labs design system" width="980">
+</p>
+
 ---
 
 <a name="how-it-works"></a>
 
 ## How It Works
+
+<p align="center">
+  <img src="assets/architecture-agentra-v2.svg" alt="AgenticVision architecture map with MCP clients, transport, tools, resources, prompts, and storage" width="980">
+</p>
 
 1. **Capture** — `vision_capture` accepts images from files, base64, screenshots, or the system clipboard. Each image is resized, embedded via CLIP ViT-B/32 into a 512-dimensional vector, compressed to JPEG thumbnail, and stored in the `.avis` binary file. Screenshots support optional region capture; clipboard reads the current image from the OS clipboard.
 

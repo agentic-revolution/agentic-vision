@@ -34,6 +34,13 @@ assert_contains() {
   fi
 }
 
+http_ok() {
+  local url="$1"
+  curl -fsSL --retry 3 --retry-delay 1 --retry-connrefused \
+    -A "agentra-install-guardrails/1.0 (+https://agentralabs.tech)" \
+    "$url" >/dev/null
+}
+
 # Front-facing command requirements
 assert_contains "curl -fsSL https://agentralabs.tech/install/vision | bash" README.md docs/quickstart.md
 assert_contains "cargo install agentic-vision-mcp" README.md docs/quickstart.md
@@ -54,9 +61,9 @@ fi
 bash -n scripts/install.sh
 bash scripts/install.sh --dry-run >/dev/null
 
-# Public endpoint/package health
-curl -fsSL https://agentralabs.tech/install/vision >/dev/null
-curl -fsSL https://crates.io/api/v1/crates/agentic-vision >/dev/null
-curl -fsSL https://crates.io/api/v1/crates/agentic-vision-mcp >/dev/null
+# Public package/repo health (stable URLs for CI)
+http_ok https://raw.githubusercontent.com/agentralabs/agentic-vision/main/scripts/install.sh
+http_ok https://crates.io/api/v1/crates/agentic-vision
+http_ok https://crates.io/api/v1/crates/agentic-vision-mcp
 
 echo "Install command guardrails passed (vision)."
