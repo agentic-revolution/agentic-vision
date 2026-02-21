@@ -8,7 +8,7 @@ cargo install cortex-runtime
 
 Or use the one-liner:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/agentralabs/agentic-vision/main/scripts/install.sh | bash
+curl -fsSL https://agentralabs.tech/install/vision | bash
 ```
 
 Verify:

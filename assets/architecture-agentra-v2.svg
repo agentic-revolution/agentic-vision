@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" role="img" aria-label="AgenticVision architecture alternate variant in Agentra Labs design system">
+  <defs>
+    <pattern id="dotgrid2" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.1" fill="#c8c5bb"/>
+    </pattern>
+    <style><![CDATA[
+      .mono { font-family:'IBM Plex Mono','JetBrains Mono',monospace; }
+      .ink { fill:#111111; }
+      .muted { fill:#6f6a5f; }
+      .accent { fill:#ea580c; }
+      .panel { fill:#f2f1ea; stroke:#111111; stroke-width:2; }
+      .chip { fill:#fbfaf4; stroke:#111111; stroke-width:1.5; }
+      .rail { fill:#151515; stroke:#111111; stroke-width:1.5; }
+      .wire { stroke:#111111; stroke-width:1.4; }
+      .wire-accent { stroke:#ea580c; stroke-width:1.8; }
+    ]]></style>
+  </defs>
+
+  <rect width="1200" height="560" fill="#f2f1ea"/>
+  <rect width="1200" height="560" fill="url(#dotgrid2)"/>
+
+  <line x1="26" y1="28" x2="1174" y2="28" stroke="#111111"/>
+  <text x="30" y="20" class="mono muted" font-size="12" letter-spacing="2.2">// SECTION: AGENTICVISION.ARCH.V2</text>
+  <text x="1168" y="20" text-anchor="end" class="mono muted" font-size="12" letter-spacing="2">TICK:0202</text>
+
+  <rect x="26" y="46" width="1148" height="492" class="panel"/>
+  <text x="70" y="86" class="mono ink" font-size="30" letter-spacing="2" font-weight="700">AGENTICVISION SYSTEM MAP</text>
+  <text x="70" y="110" class="mono muted" font-size="13" letter-spacing="1.2">MCP entrypoints, runtime surface, model core, and portable .avis artifacts</text>
+
+  <rect x="70" y="132" width="1060" height="58" rx="9" class="rail"/>
+  <text x="95" y="153" class="mono" fill="#f5f4ee" font-size="12" letter-spacing="1.5">ENTRY CLIENTS</text>
+
+  <rect x="95" y="160" width="155" height="22" rx="11" class="chip"/>
+  <text x="173" y="175" text-anchor="middle" class="mono ink" font-size="11" font-weight="700">Claude Desktop</text>
+
+  <rect x="264" y="160" width="155" height="22" rx="11" class="chip"/>
+  <text x="342" y="175" text-anchor="middle" class="mono ink" font-size="11" font-weight="700">VS Code / Cursor</text>
+
+  <rect x="433" y="160" width="130" height="22" rx="11" class="chip"/>
+  <text x="498" y="175" text-anchor="middle" class="mono ink" font-size="11" font-weight="700">Windsurf</text>
+
+  <rect x="577" y="160" width="155" height="22" rx="11" class="chip"/>
+  <text x="655" y="175" text-anchor="middle" class="mono ink" font-size="11" font-weight="700">Any MCP Client</text>
+
+  <rect x="746" y="160" width="120" height="22" rx="11" class="chip"/>
+  <text x="806" y="175" text-anchor="middle" class="mono ink" font-size="11" font-weight="700">Rust API</text>
+
+  <rect x="880" y="160" width="225" height="22" rx="11" class="chip"/>
+  <text x="993" y="175" text-anchor="middle" class="mono accent" font-size="11" font-weight="700">MCP STDIO TRANSPORT (JSON-RPC 2.0)</text>
+
+  <line x1="600" y1="190" x2="600" y2="216" class="wire-accent"/>
+
+  <rect x="70" y="216" width="1060" height="252" rx="10" class="chip"/>
+  <text x="95" y="242" class="mono muted" font-size="14" letter-spacing="1.3">AGENTIC-VISION-MCP (Rust)</text>
+
+  <rect x="95" y="262" width="326" height="60" class="chip"/>
+  <text x="110" y="286" class="mono ink" font-size="14" font-weight="700">MCP Surface</text>
+  <text x="110" y="306" class="mono muted" font-size="12">10 tools · 6 resources · 4 prompts · session manager</text>
+
+  <rect x="437" y="262" width="326" height="60" class="chip"/>
+  <text x="452" y="286" class="mono ink" font-size="14" font-weight="700">Semantic Vision Engine</text>
+  <text x="452" y="306" class="mono muted" font-size="12">capture · query · compare · diff · similar · describe</text>
+
+  <rect x="779" y="262" width="326" height="60" class="chip"/>
+  <text x="794" y="286" class="mono ink" font-size="14" font-weight="700">Model Runtime</text>
+  <text x="794" y="306" class="mono muted" font-size="12">CLIP ViT-B/32 · ONNX Runtime · cosine f64 similarity</text>
+
+  <line x1="258" y1="322" x2="258" y2="354" class="wire"/>
+  <line x1="600" y1="322" x2="600" y2="354" class="wire"/>
+  <line x1="942" y1="322" x2="942" y2="354" class="wire"/>
+
+  <rect x="95" y="354" width="326" height="76" class="chip"/>
+  <text x="110" y="380" class="mono ink" font-size="14" font-weight="700">Persistence Layer</text>
+  <text x="110" y="401" class="mono muted" font-size="12">Binary .avis · 64-byte header (0x41564953)</text>
+  <text x="110" y="419" class="mono muted" font-size="12">JPEG thumbs · 512-dim vectors · ~4.26 KB/capture</text>
+
+  <rect x="437" y="354" width="326" height="76" class="chip"/>
+  <text x="452" y="380" class="mono ink" font-size="14" font-weight="700">Link Surface</text>
+  <text x="452" y="401" class="mono muted" font-size="12">vision_link → AgenticMemory nodes (.amem)</text>
+  <text x="452" y="419" class="mono muted" font-size="12">cross-session recall and continuity hooks</text>
+
+  <rect x="779" y="354" width="326" height="76" class="chip"/>
+  <text x="794" y="380" class="mono ink" font-size="14" font-weight="700">Execution Surface</text>
+  <text x="794" y="401" class="mono muted" font-size="12">MCP clients · REST gateway · automation workflows</text>
+  <text x="794" y="419" class="mono muted" font-size="12">deterministic and browserless by default</text>
+
+  <circle cx="1142" cy="524" r="5" class="accent"/>
+</svg>

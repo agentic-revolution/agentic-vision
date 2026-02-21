@@ -3,7 +3,7 @@
 ## Quick Install (one-liner)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/agentralabs/agentic-vision/main/scripts/install.sh | bash
+curl -fsSL https://agentralabs.tech/install/vision | bash
 ```
 
 Downloads release binaries, installs to `~/.local/bin/`, and merges MCP server config into Claude Desktop and Claude Code. Vision defaults to `~/.vision.avis`. Requires `curl` and `jq`.

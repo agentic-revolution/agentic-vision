@@ -39,6 +39,10 @@ One binary. 10 MCP tools. Persistent `.avis` files. Works with Claude Desktop, V
   <img src="assets/architecture.svg" alt="AgenticVision architecture — MCP clients, transport, tools, resources, prompts, CLIP engine, similarity, diff, memory linking, .avis storage" width="800">
 </p>
 
+<p align="center">
+  <img src="assets/architecture-agentra.svg" alt="AgenticVision architecture in Agentra Labs design system" width="980">
+</p>
+
 ---
 
 <a name="benchmarks"></a>
@@ -140,12 +144,12 @@ Rust core. CLIP ViT-B/32 via ONNX Runtime. Binary `.avis` format. Real numbers f
 
 **One-liner** (downloads binary + configures Claude):
 ```bash
-curl -fsSL https://raw.githubusercontent.com/agentralabs/agentic-vision/main/scripts/install.sh | bash
+curl -fsSL https://agentralabs.tech/install/vision | bash
 ```
 
 | Channel | Command | Result |
 |:---|:---|:---|
-| GitHub releases (official) | `curl -fsSL https://raw.githubusercontent.com/agentralabs/agentic-vision/main/scripts/install.sh \| bash` | Installs release binaries and merges MCP config |
+| GitHub releases (official) | `curl -fsSL https://agentralabs.tech/install/vision \| bash` | Installs release binaries and merges MCP config |
 | crates.io paired crates (official) | `cargo install agentic-vision agentic-vision-mcp` | Installs core library crate and MCP server binary |
 
 **MCP Server** (for Claude Desktop, VS Code, Cursor, Windsurf):
