@@ -26,6 +26,9 @@ fi
 if rg -n "^cargo install agentic-vision$" README.md docs -g '*.md' >/dev/null; then
   fail "Found invalid binary install command for library crate agentic-vision"
 fi
+if rg -n "cargo install --git .*agentic-vision( |$)" scripts/install.sh >/dev/null; then
+  fail "Vision installer must not cargo-install the library crate (agentic-vision)"
+fi
 
 # Installer health
 bash -n scripts/install.sh
