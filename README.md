@@ -72,10 +72,6 @@ Rust core. CLIP ViT-B/32 via ONNX Runtime. Binary `.avis` format. Real numbers f
 
 **Links to AgenticMemory.** The `vision_link` tool connects visual captures to [AgenticMemory](https://github.com/agentralabs/agentic-memory) cognitive graph nodes — bridging what an agent *sees* with what it *knows*.
 
-<p align="center">
-  <img src="assets/architecture-agentra.svg" alt="AgenticVision architecture in Agentra Labs design system" width="980">
-</p>
-
 ---
 
 <a name="how-it-works"></a>
@@ -153,6 +149,10 @@ curl -fsSL https://agentralabs.tech/install/vision | bash
 |:---|:---|:---|
 | GitHub installer (official) | `curl -fsSL https://agentralabs.tech/install/vision \| bash` | Installs release binaries when available, otherwise source fallback; merges MCP config |
 | crates.io + Cargo deps (official) | `cargo install agentic-vision-mcp` + `cargo add agentic-vision` | Installs MCP server binary and adds the core library crate to your project |
+
+<p align="center">
+  <img src="assets/architecture-agentra.svg" alt="AgenticVision architecture in Agentra Labs design system" width="980">
+</p>
 
 **MCP Server** (for Claude Desktop, VS Code, Cursor, Windsurf):
 ```bash
