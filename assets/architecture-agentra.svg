@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 380" role="img" aria-label="AgenticVision architecture diagram in Agentra design system">
+  <defs>
+    <pattern id="grid" width="18" height="18" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#c9c6bb"/>
+    </pattern>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 Z" fill="#1f1f1f"/>
+    </marker>
+    <style><![CDATA[
+      .mono { font-family:'IBM Plex Mono','JetBrains Mono',monospace; }
+      .ink { fill:#121212; }
+      .muted { fill:#6d6a63; }
+      .accent { fill:#ea580c; }
+      .box { fill:#fffdf6; stroke:#1f1f1f; stroke-width:1.8; }
+    ]]></style>
+  </defs>
+
+  <rect width="800" height="380" fill="#f2f1ea"/>
+  <rect width="800" height="380" fill="url(#grid)"/>
+  <line x1="14" y1="24" x2="786" y2="24" stroke="#1f1f1f"/>
+  <text x="14" y="17" class="mono muted" font-size="10" letter-spacing="1.8">// AGENTICVISION ARCHITECTURE</text>
+
+  <rect x="18" y="40" width="764" height="322" class="box"/>
+
+  <rect x="44" y="74" width="188" height="56" rx="8" class="box"/>
+  <text x="138" y="97" class="mono muted" text-anchor="middle" font-size="10" letter-spacing="1.2">MCP CLIENTS</text>
+  <text x="138" y="116" class="mono ink" text-anchor="middle" font-size="11" letter-spacing="1">Claude / Cursor / VS Code</text>
+
+  <rect x="44" y="160" width="188" height="56" rx="8" class="box"/>
+  <text x="138" y="183" class="mono muted" text-anchor="middle" font-size="10" letter-spacing="1.2">INGEST LAYER</text>
+  <text x="138" y="202" class="mono ink" text-anchor="middle" font-size="11" letter-spacing="1">file / screenshot / clipboard</text>
+
+  <rect x="44" y="246" width="188" height="56" rx="8" class="box"/>
+  <text x="138" y="269" class="mono muted" text-anchor="middle" font-size="10" letter-spacing="1.2">MODEL LAYER</text>
+  <text x="138" y="288" class="mono ink" text-anchor="middle" font-size="11" letter-spacing="1">CLIP ViT-B/32 embeddings</text>
+
+  <rect x="306" y="117" width="188" height="108" rx="10" fill="#ece7d8" stroke="#1f1f1f" stroke-width="2"/>
+  <text x="400" y="144" class="mono muted" text-anchor="middle" font-size="10" letter-spacing="1.2">VISION CORE</text>
+  <text x="400" y="168" class="mono ink" text-anchor="middle" font-size="11" letter-spacing="1">capture + query + similar</text>
+  <text x="400" y="188" class="mono ink" text-anchor="middle" font-size="11" letter-spacing="1">compare + diff + link</text>
+  <text x="400" y="210" class="mono accent" text-anchor="middle" font-size="14" font-weight="700">.AVIS</text>
+
+  <rect x="568" y="74" width="188" height="56" rx="8" class="box"/>
+  <text x="662" y="97" class="mono muted" text-anchor="middle" font-size="10" letter-spacing="1.2">QUERY SURFACE</text>
+  <text x="662" y="116" class="mono ink" text-anchor="middle" font-size="11" letter-spacing="1">vision_query / vision_similar</text>
+
+  <rect x="568" y="160" width="188" height="56" rx="8" class="box"/>
+  <text x="662" y="183" class="mono muted" text-anchor="middle" font-size="10" letter-spacing="1.2">COMPARE SURFACE</text>
+  <text x="662" y="202" class="mono ink" text-anchor="middle" font-size="11" letter-spacing="1">vision_compare / vision_diff</text>
+
+  <rect x="568" y="246" width="188" height="56" rx="8" class="box"/>
+  <text x="662" y="269" class="mono muted" text-anchor="middle" font-size="10" letter-spacing="1.2">MEMORY BRIDGE</text>
+  <text x="662" y="288" class="mono ink" text-anchor="middle" font-size="11" letter-spacing="1">vision_link → AgenticMemory</text>
+
+  <line x1="232" y1="102" x2="306" y2="143" stroke="#1f1f1f" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <line x1="232" y1="188" x2="306" y2="171" stroke="#1f1f1f" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <line x1="232" y1="274" x2="306" y2="199" stroke="#1f1f1f" stroke-width="1.6" marker-end="url(#arrow)"/>
+
+  <line x1="494" y1="143" x2="568" y2="102" stroke="#1f1f1f" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <line x1="494" y1="171" x2="568" y2="188" stroke="#ea580c" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <line x1="494" y1="199" x2="568" y2="274" stroke="#1f1f1f" stroke-width="1.6" marker-end="url(#arrow)"/>
+
+  <line x1="42" y1="326" x2="758" y2="326" stroke="#1f1f1f"/>
+  <text x="42" y="344" class="mono muted" font-size="10" letter-spacing="1.3">STDIO MCP · BROWSERLESS EXTRACTION · PORTABLE ARTIFACTS · CROSS-SESSION VISUAL CONTINUITY</text>
+  <circle cx="758" cy="340" r="4" class="accent"/>
+</svg>
