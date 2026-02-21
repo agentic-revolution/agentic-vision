@@ -13,10 +13,6 @@
   <a href="#quickstart">Quickstart</a> · <a href="#why-agenticvision">Why</a> · <a href="#benchmarks">Benchmarks</a> · <a href="#how-it-works">How It Works</a> · <a href="#install">Install</a> · <a href="INSTALL.md">Full Install Guide</a> · <a href="publication/paper-ii-agentic-vision-mcp/agentic-vision-mcp-paper.pdf">Paper</a>
 </p>
 
-> **Standalone guarantee:** AgenticVision is independently installable and operable. Integration with AgenticMemory/AgenticCodebase is optional, never required.
->
-> **Autonomic defaults (phase 4):** daemon mode supports profile-driven maintenance (`CORTEX_AUTONOMIC_PROFILE` = `desktop|cloud|aggressive`), periodic cache/registry hygiene, policy-gated cache migration (`CORTEX_STORAGE_MIGRATION_POLICY` = `auto-safe|strict|off`), SLA-aware GC throttling (`CORTEX_SLA_MAX_CACHE_ENTRIES_BEFORE_GC_THROTTLE`), and health-ledger snapshots (`CORTEX_HEALTH_LEDGER_DIR` or `AGENTRA_HEALTH_LEDGER_DIR`) with safe defaults. Default ledger location is `~/.agentra/health-ledger`. Optional tuning: `CORTEX_MAINTENANCE_TICK_SECS`, `CORTEX_REGISTRY_GC_EVERY_TICKS`, `CORTEX_REGISTRY_GC_KEEP_DELTAS`, `CORTEX_HEALTH_LEDGER_EMIT_SECS`.
-
 ---
 
 ## AI agents can't see across sessions.
@@ -142,6 +138,11 @@ Rust core. CLIP ViT-B/32 via ONNX Runtime. Binary `.avis` format. Real numbers f
 
 ## Install
 
+**One-liner** (downloads binary + configures Claude):
+```bash
+curl -fsSL https://raw.githubusercontent.com/agentralabs/agentic-vision/main/scripts/install.sh | bash
+```
+
 **MCP Server** (for Claude Desktop, VS Code, Cursor, Windsurf):
 ```bash
 cargo install agentic-vision-mcp
@@ -167,6 +168,19 @@ cargo install agentic-vision
 > See [INSTALL.md](INSTALL.md) for full installation guide, VS Code / Cursor configuration, build from source, and troubleshooting.
 
 > **Do not use `/tmp` for vision files** — macOS and Linux clear this directory periodically. Use `~/.vision.avis` for persistent storage.
+
+## Deployment Model
+
+- **Standalone by default:** AgenticVision is independently installable and operable. Integration with AgenticMemory or AgenticCodebase is optional, never required.
+- **Autonomic operations by default:** daemon/runtime maintenance uses safe profile-based defaults with cache hygiene, migration safeguards, and health-ledger snapshots.
+
+| Area | Default behavior | Controls |
+|:---|:---|:---|
+| Autonomic profile | Conservative local-first posture | `CORTEX_AUTONOMIC_PROFILE=desktop|cloud|aggressive` |
+| Cache + registry maintenance | Periodic expiry cleanup and registry GC | `CORTEX_MAINTENANCE_TICK_SECS`, `CORTEX_REGISTRY_GC_EVERY_TICKS`, `CORTEX_REGISTRY_GC_KEEP_DELTAS` |
+| Storage migration | Policy-gated with checkpointed auto-safe path | `CORTEX_STORAGE_MIGRATION_POLICY=auto-safe|strict|off` |
+| Maintenance throttling | SLA-aware under sustained cache pressure | `CORTEX_SLA_MAX_CACHE_ENTRIES_BEFORE_GC_THROTTLE` |
+| Health ledger | Periodic operational snapshots (default: `~/.agentra/health-ledger`) | `CORTEX_HEALTH_LEDGER_DIR`, `AGENTRA_HEALTH_LEDGER_DIR`, `CORTEX_HEALTH_LEDGER_EMIT_SECS` |
 
 ---
 
@@ -214,8 +228,8 @@ for m in matches {
 |:---|---:|:---|
 | Rust core (`agentic-vision`) | **38** | Unit + integration (includes screenshot/clipboard) |
 | Python SDK tests | **47** | Edge cases, format validation |
-| MCP integration (Phase 5) | **3** | Python → Rust stdio transport |
-| Multi-agent (Phase 6) | **3** | Shared file, vision-memory linking, rapid handoff |
+| MCP integration suite | **3** | Python → Rust stdio transport |
+| Multi-agent suite | **3** | Shared file, vision-memory linking, rapid handoff |
 | **Total** | **91** | All passing |
 
 **Two research papers:**
