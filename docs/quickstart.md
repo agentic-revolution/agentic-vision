@@ -7,6 +7,18 @@ Use the one-liner installer (recommended):
 curl -fsSL https://agentralabs.tech/install/vision | bash
 ```
 
+Install by environment:
+```bash
+# Desktop MCP clients
+curl -fsSL https://agentralabs.tech/install/vision/desktop | bash
+
+# Terminal-only (no desktop config writes)
+curl -fsSL https://agentralabs.tech/install/vision/terminal | bash
+
+# Remote/server host (no desktop config writes)
+curl -fsSL https://agentralabs.tech/install/vision/server | bash
+```
+
 Or install MCP + library manually:
 ```bash
 cargo install agentic-vision-mcp

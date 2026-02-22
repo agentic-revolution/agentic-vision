@@ -43,6 +43,9 @@ http_ok() {
 
 # Front-facing command requirements
 assert_contains "curl -fsSL https://agentralabs.tech/install/vision | bash" README.md docs/quickstart.md
+assert_contains "curl -fsSL https://agentralabs.tech/install/vision/desktop | bash" README.md docs/quickstart.md INSTALL.md
+assert_contains "curl -fsSL https://agentralabs.tech/install/vision/terminal | bash" README.md docs/quickstart.md INSTALL.md
+assert_contains "curl -fsSL https://agentralabs.tech/install/vision/server | bash" README.md docs/quickstart.md INSTALL.md
 assert_contains "cargo install agentic-vision-mcp" README.md docs/quickstart.md
 assert_contains "cargo add agentic-vision" README.md docs/quickstart.md
 
@@ -60,6 +63,9 @@ fi
 # Installer health
 bash -n scripts/install.sh
 bash scripts/install.sh --dry-run >/dev/null
+bash scripts/install.sh --profile=desktop --dry-run >/dev/null
+bash scripts/install.sh --profile=terminal --dry-run >/dev/null
+bash scripts/install.sh --profile=server --dry-run >/dev/null
 
 # Public package/repo health (stable URLs for CI)
 http_ok https://raw.githubusercontent.com/agentralabs/agentic-vision/main/scripts/install.sh

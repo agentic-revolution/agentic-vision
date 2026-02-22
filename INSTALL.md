@@ -8,6 +8,19 @@ curl -fsSL https://agentralabs.tech/install/vision | bash
 
 Downloads release binaries, installs to `~/.local/bin/`, and merges MCP server config into Claude Desktop and Claude Code. Vision defaults to `~/.vision.avis`. Requires `curl` and `jq`.
 
+### Install by environment
+
+```bash
+# Desktop MCP clients (auto-merge Claude configs)
+curl -fsSL https://agentralabs.tech/install/vision/desktop | bash
+
+# Terminal-only (no desktop config writes)
+curl -fsSL https://agentralabs.tech/install/vision/terminal | bash
+
+# Remote/server host (no desktop config writes)
+curl -fsSL https://agentralabs.tech/install/vision/server | bash
+```
+
 ---
 
 Three ways to install AgenticVision, depending on your use case.

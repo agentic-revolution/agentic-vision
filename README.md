@@ -140,14 +140,29 @@ Rust core. CLIP ViT-B/32 via ONNX Runtime. Binary `.avis` format. Real numbers f
 
 ## Install
 
-**One-liner** (downloads binary + configures Claude):
+**One-liner** (desktop profile, backwards-compatible):
 ```bash
 curl -fsSL https://agentralabs.tech/install/vision | bash
+```
+
+**Environment profiles** (one command per environment):
+```bash
+# Desktop MCP clients (auto-merge Claude Desktop + Claude Code when detected)
+curl -fsSL https://agentralabs.tech/install/vision/desktop | bash
+
+# Terminal-only (no desktop config writes)
+curl -fsSL https://agentralabs.tech/install/vision/terminal | bash
+
+# Remote/server hosts (no desktop config writes)
+curl -fsSL https://agentralabs.tech/install/vision/server | bash
 ```
 
 | Channel | Command | Result |
 |:---|:---|:---|
 | GitHub installer (official) | `curl -fsSL https://agentralabs.tech/install/vision \| bash` | Installs release binaries when available, otherwise source fallback; merges MCP config |
+| GitHub installer (desktop profile) | `curl -fsSL https://agentralabs.tech/install/vision/desktop \| bash` | Explicit desktop profile behavior |
+| GitHub installer (terminal profile) | `curl -fsSL https://agentralabs.tech/install/vision/terminal \| bash` | Installs binaries only; no desktop config writes |
+| GitHub installer (server profile) | `curl -fsSL https://agentralabs.tech/install/vision/server \| bash` | Installs binaries only; server-safe behavior |
 | crates.io + Cargo deps (official) | `cargo install agentic-vision-mcp` + `cargo add agentic-vision` | Installs MCP server binary and adds the core library crate to your project |
 
 <p align="center">
